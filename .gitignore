@@ -1,0 +1,5 @@
+*.d
+ccleste
+a.out
+*.o
+classic.lua
