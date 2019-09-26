@@ -59,7 +59,15 @@ void InitEmu() {
 
 	memcpy(palette, base_palette, sizeof(palette));
 
-	font = al_create_builtin_font();
+	ALLEGRO_BITMAP* font_bmp = al_load_bitmap("assets/font.png");
+	//load font from bitmap:  https://liballeg.org/a5docs/trunk/font.html#al_grab_font_from_bitmap
+	int ranges[] = {
+		'a', 'z', '0', '9',
+		'~','~', '!','!', '@','@', '#','#', '$','$', '%','%', '^', '^', '&','&', '*','*', '(',')',
+		'_','_', '+','+', '-','-', '=','=', '?','?', ':',':', '.','.', ' ',' '
+	};
+	font = al_grab_font_from_bitmap(font_bmp, (sizeof(ranges)/sizeof(*ranges))/2, ranges);
+	al_destroy_bitmap(font_bmp);
 
 	atlas = al_load_bitmap("assets/atlas.png"); //the graphics atlas
 	strong_assert(atlas != NULL);
