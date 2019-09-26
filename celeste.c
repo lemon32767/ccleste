@@ -323,7 +323,7 @@ typedef struct {
 
     //message
     char* text;
-    int index;
+    float index;
     VECI off2; //changed from off..
 
     //big chest
@@ -1145,7 +1145,7 @@ static void PLATFORM_draw(OBJ* this) {
     //tile=86,
     //last=0,
 static void MESSAGE_draw(OBJ* this) {
-    this->text="// celeste mountain //#this memorial to those# perished on the climb";
+    this->text="-- celeste mountain --#this memorial to those# perished on the climb";
     if (OBJ_check(this, OBJ_PLAYER,4,0)) {
         if (this->index<strlen(this->text)) {
             this->index+=0.5;
