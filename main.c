@@ -14,6 +14,7 @@ static ALLEGRO_DISPLAY* display = NULL;
 static ALLEGRO_EVENT_QUEUE* event_queue = NULL;
 
 int gGameRun = 1;
+int gWidth = 128*4, gHeight = 128*4;
 
 void cleanup(void);
 void process_event(ALLEGRO_EVENT* ev);
@@ -28,7 +29,7 @@ int main() {
 	//create display
 	al_set_new_display_flags(ALLEGRO_WINDOWED);
 	al_set_new_display_option(ALLEGRO_VSYNC, 1, ALLEGRO_SUGGEST);
-	display = al_create_display(128, 128);
+	display = al_create_display(gWidth, gHeight);
 	strong_assert(display != NULL);
 	int has_vsync = al_get_display_option(display, ALLEGRO_VSYNC) != 2;
 
@@ -71,14 +72,14 @@ int main() {
 		al_set_target_bitmap(screen);
 
 		/* section $UPDATE */
-		Celeste_P8_update();
+		EmuUpdate();
 
 		/* section $DRAW */
-		Celeste_P8_draw();
+		EmuDraw();
 
 		end_frame:
 		al_set_target_bitmap(al_get_backbuffer(display));
-		al_draw_bitmap(screen,0,0,0);
+		al_draw_scaled_bitmap(screen, 0,0,128, 128, 0,0,gWidth, gHeight, 0);
 		al_flip_display(); //waits for vsync if possible
 		if (!has_vsync) {
 		}

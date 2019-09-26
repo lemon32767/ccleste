@@ -115,6 +115,35 @@ void InputEvKeyUp(int k) {
 	}
 }
 
+void EmuUpdate() {
+	Celeste_P8_update();
+}
+
+void EmuDraw() {
+	//draw normally
+	Celeste_P8_draw();
+	//now do the palette swap
+	#if 0
+	ALLEGRO_BITMAP* target = al_get_target_bitmap();
+	al_lock_bitmap(target, ALLEGRO_PIXEL_FORMAT_ANY, ALLEGRO_LOCK_READWRITE);
+	for (int x = 0; x < 128; x++) for (int y = 0; y < 128; y++) {
+		for (int i = 0; i < sizeof(palette)/sizeof(*palette); i++) {
+			ALLEGRO_COLOR pix = al_get_pixel(target, x, y);
+			ALLEGRO_COLOR col = palette[i];
+			float diff = (pix.r-col.r)*(pix.r-col.r) + (pix.g-col.g)*(pix.g-col.g) + (pix.b-col.b)*(pix.b-col.b);
+			
+			if (diff*diff < 1e-4) {
+				al_put_pixel(x, y, palette[i]);
+				goto next;
+
+			}
+		}
+		next:;
+	}
+	al_unlock_bitmap(target);
+	#endif
+}
+
 static int fget(int tile, int flag) {
 	if (flag) flag--;
 	return tile < sizeof(tile_flags)/sizeof(*tile_flags) && (tile_flags[tile] & (1 << flag)) != 0;

@@ -1678,7 +1678,7 @@ static void draw_time(float x, float y) {
     P8rectfill(x,y,x+32,y+6,0);
     {
         char str[16];
-        snprintf(str, sizeof(str), "%2i:%2i:%2i", h, m, s);
+        snprintf(str, sizeof(str), "%.2i:%.2i:%.2i", h, m, s);
         P8print(str,x+1,y+1,7);
     }
 }
