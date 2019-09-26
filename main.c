@@ -29,6 +29,7 @@ int main() {
 	//create display
 	al_set_new_display_flags(ALLEGRO_WINDOWED);
 	al_set_new_display_option(ALLEGRO_VSYNC, 1, ALLEGRO_SUGGEST);
+	//al_set_new_display_option(ALLEGRO_OPENGL, 1, ALLEGRO_SUGGEST);
 	display = al_create_display(gWidth, gHeight);
 	strong_assert(display != NULL);
 	int has_vsync = al_get_display_option(display, ALLEGRO_VSYNC) != 2;

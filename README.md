@@ -10,12 +10,10 @@ Early work in progress.
 
 ## Known Issues/Compatibility
 
-As of the time of writing, the game boots and works for the most part, however:
+As of the time of writing, the game boots and is beatable, however:
 
-	- The title screen doesn't display anything other than the text.
-	- Physics are broken: for some reason jumps last longer and go further, holding towards a wall doesn't slide you down, etc...
-	- There's several graphical glitches, such as hair not working, some BG tiles not displaying, palette swaps not being implemented, weird sprites displaying in the death animation, etc.
-	- The levels completely break from 1700m onwards
+	- Physics are broken: for some reason jumps last longer and go further, holding towards a wall doesn't slide you down, etc... This is the single biggest gameplay issue, but it will be fixed.
+	- Palette swapping is not yet complete, a rewrite to how sprites are handled will be done soon.
 	- Audio isn't implemented at all yet.
 	- Only keyboard XC+arrow keys control.
 	- Trig functions are not correctly implemented.

@@ -90,7 +90,7 @@ static inline bool P8fget(int t, int f) {
     return Celeste_P8_call(CELESTE_P8_FGET, t,f).i;
 }
 static inline void P8camera(int x, int y) {
-    Celeste_P8_call(CELESTE_P8_CAMERA, x,y);
+    Celeste_P8_call(CELESTE_P8_CAMERA, x, y);
 }
 static inline void P8map(int mx, int my, int tx, int ty, int mw, int mh, int mask) {
     Celeste_P8_call(CELESTE_P8_MAP, mx, my, tx, ty, mw, mh, mask);
@@ -1280,7 +1280,7 @@ static void FLAG_draw(OBJ* this) {
         {
             char str[16];
             snprintf(str, sizeof(str), "deaths:%i", deaths);
-            P8print("str",48,24,7);
+            P8print(str,48,24,7);
         }
     } else if (OBJ_check(this, OBJ_PLAYER,0,0)) {
         P8sfx(55);
