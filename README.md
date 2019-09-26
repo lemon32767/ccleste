@@ -2,7 +2,7 @@
 
 This is a C source port of the [original celeste (Celeste classic)](https://www.lexaloffle.com/bbs/?tid=2145) for the PICO-8.
 
-The actual game is in celeste.c, all other files are but the 'frontend' to provide graphics and (eventually) audio output.
+The actual game is in celeste.c, all other files are but the 'frontend' to provide graphics and (eventually) audio output, using [allegro5](https://liballeg.org/).
 
 Early work in progress.
 
