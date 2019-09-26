@@ -151,7 +151,6 @@ void EmuDraw() {
 }
 
 static int fget(int tile, int flag) {
-	if (flag) flag--;
 	return tile < sizeof(tile_flags)/sizeof(*tile_flags) && (tile_flags[tile] & (1 << flag)) != 0;
 }
 
@@ -263,8 +262,10 @@ Celeste_P8_val HandleP8Call(CELESTE_P8_CALLBACK_TYPE t, ...) {
 			for (int x = 0; x < mw; x++) {
 				for (int y = 0; y < mh; y++) {
 					int tile = tilemap[x + mx + (y + my)*128];
-					if (sprites[tile] && (mask == 0 || fget(tile, mask)))
+					//this is a horrible hack... i dont know how to get this to work otherwise..., but it makes the bg work
+					if (mask == 0 || (mask == 4 && tile_flags[tile] == 4) || fget(tile, mask != 4 ? mask-1 : mask)) {
 						al_draw_bitmap(sprites[tile], tx+x*8 - camera_x, ty+y*8 - camera_y, 0);
+					}
 				}
 			}
 		)
