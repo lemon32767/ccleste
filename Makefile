@@ -25,7 +25,7 @@ release: $(OUT)
 # generate dependendeces and  objetcs
 %.o: %.c
 	@echo "[INFO] generating deps for $*.o"
-	$(CC) -MM $(CFLAGS) $*.c > $*.d
+	gcc -MM $(CFLAGS) $*.c > $*.d
 	$(CC) -c $(CFLAGS) $*.c -o $*.o
 	@echo
 

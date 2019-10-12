@@ -445,7 +445,7 @@ static void OBJ_move(OBJ* obj, float ox, float oy) {
 static void OBJ_move_x(OBJ* obj, float amount, float start) {
     if (obj->solids) {
         int step = sign(amount);
-        for (int i=start; i <= abs(amount); i++) {
+        for (int i=start; i <= fabsf(amount); i++) {
             if (!OBJ_is_solid(obj, step,0)) {
                 obj->x += step;
             } else {
@@ -462,7 +462,7 @@ static void OBJ_move_x(OBJ* obj, float amount, float start) {
 static void OBJ_move_y(OBJ* obj, float amount) {
     if (obj->solids) {
         int step = sign(amount);
-        for (int i=0; i <= abs(amount); i++) {
+        for (int i=0; i <= fabsf(amount); i++) {
          if (!OBJ_is_solid(obj,0,step)) {
                 obj->y += step;
             } else {
@@ -561,7 +561,7 @@ static void PLAYER_update(OBJ* this) {
             }
         }
 
-        if (abs(this->spd.x) > maxrun) {
+        if (fabsf(this->spd.x) > maxrun) {
             this->spd.x=appr(this->spd.x,sign(this->spd.x)*maxrun,deccel);
         } else {
             this->spd.x=appr(this->spd.x,input*maxrun,accel);
@@ -576,7 +576,7 @@ static void PLAYER_update(OBJ* this) {
         int maxfall=2;
         float gravity=0.21;
 
-        if (abs(this->spd.y) <= 0.15) {
+        if (fabsf(this->spd.y) <= 0.15) {
             gravity*=0.5;
         }
 
@@ -1653,7 +1653,7 @@ void Celeste_P8_draw() {
             }
         }
         if (p!=NULL) {
-            float diff=min(24,40-abs(p->x+4-64));
+            float diff=min(24,40-fabsf(p->x+4-64));
             P8rectfill(0,0,diff,128,0);
             P8rectfill(128-diff,0,128,128,0);
         }
