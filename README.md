@@ -11,8 +11,7 @@ Early work in progress.
 ## Known Issues/Compatibility
 
 As of the time of writing, the game boots and is beatable, however:
-
-	- Physics are broken: for some reason jumps last longer and go further, holding towards a wall doesn't slide you down, etc... This is the single biggest gameplay issue, but it will be fixed.
+	
 	- Palette swapping is not yet complete, a rewrite to how sprites are handled will be done soon.
 	- Audio isn't implemented at all yet.
 	- Only keyboard XC+arrow keys control.
