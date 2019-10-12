@@ -573,7 +573,7 @@ static void PLAYER_update(OBJ* this) {
         }
 
         // gravity
-        int maxfall=2;
+        float maxfall=2;
         float gravity=0.21;
 
         if (fabsf(this->spd.y) <= 0.15) {
