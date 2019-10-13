@@ -47,9 +47,14 @@ void Celeste_P8_set_call_func(callback_func_t func) {
     Celeste_P8_call = func;
 }
 
-#define max fmax
-#define min fmin
-#define flr floor
+#define P8max fmax
+#define P8abs fabsf
+#define P8min fmin
+#define P8flr floor
+static inline float P8sin(float x) {
+    return -sin(x*(2*M_PI)); //https://pico-8.fandom.com/wiki/Math
+}
+#define P8cos(x) -P8sin(x+0.25) //cos(x) = sin(x+pi/2)
 static inline float P8rnd(float max) {
     return Celeste_P8_call(CELESTE_P8_RND, max).f;
 }
@@ -229,7 +234,7 @@ static CLOUD clouds[17];
 //top level init code has been moved into a function
 static void PRELUDE_initclouds() {
     for (int i=0; i<=16; i++) {
-        clouds[i++] = (CLOUD){
+        clouds[i] = (CLOUD){
             .isLast = i == 16,
 
             .x=P8rnd(128),
@@ -257,10 +262,10 @@ static void PRELUDE_initparticles() {
 
             .x=P8rnd(128),
             .y=P8rnd(128),
-            .s=0+flr(P8rnd(5)/4),
+            .s=0+P8flr(P8rnd(5)/4),
             .spd=0.25+P8rnd(5),
             .off=P8rnd(1),
-            .c=6+flr(0.5+P8rnd(1))
+            .c=6+P8flr(0.5+P8rnd(1))
         };
         dead_particles[i].isLast = i == 24;
     }
@@ -431,13 +436,13 @@ static void OBJ_move(OBJ* obj, float ox, float oy) {
     float amount;
     // [x] get move amount
     obj->rem.x += ox;
-    amount = flr(obj->rem.x + 0.5);
+    amount = P8flr(obj->rem.x + 0.5);
     obj->rem.x -= amount;
     OBJ_move_x(obj, amount,0);
    
     // [y] get move amount
     obj->rem.y += oy;
-    amount = flr(obj->rem.y + 0.5);
+    amount = P8flr(obj->rem.y + 0.5);
     obj->rem.y -= amount;
     OBJ_move_y(obj, amount);
 }
@@ -445,7 +450,7 @@ static void OBJ_move(OBJ* obj, float ox, float oy) {
 static void OBJ_move_x(OBJ* obj, float amount, float start) {
     if (obj->solids) {
         int step = sign(amount);
-        for (int i=start; i <= fabsf(amount); i++) {
+        for (int i=start; i <= P8abs(amount); i++) {
             if (!OBJ_is_solid(obj, step,0)) {
                 obj->x += step;
             } else {
@@ -462,7 +467,7 @@ static void OBJ_move_x(OBJ* obj, float amount, float start) {
 static void OBJ_move_y(OBJ* obj, float amount) {
     if (obj->solids) {
         int step = sign(amount);
-        for (int i=0; i <= fabsf(amount); i++) {
+        for (int i=0; i <= P8abs(amount); i++) {
          if (!OBJ_is_solid(obj,0,step)) {
                 obj->y += step;
             } else {
@@ -561,7 +566,7 @@ static void PLAYER_update(OBJ* this) {
             }
         }
 
-        if (fabsf(this->spd.x) > maxrun) {
+        if (P8abs(this->spd.x) > maxrun) {
             this->spd.x=appr(this->spd.x,sign(this->spd.x)*maxrun,deccel);
         } else {
             this->spd.x=appr(this->spd.x,input*maxrun,accel);
@@ -576,7 +581,7 @@ static void PLAYER_update(OBJ* this) {
         float maxfall=2;
         float gravity=0.21;
 
-        if (fabsf(this->spd.y) <= 0.15) {
+        if (P8abs(this->spd.y) <= 0.15) {
             gravity*=0.5;
         }
 
@@ -714,12 +719,12 @@ static void psfx(int num) {
 void create_hair(OBJ* obj) {
     /*obj->hair = {};*/
     for (int i=0;i<=4;i++) {
-        obj->hair[i] = (HAIR) {.x=obj->x,.y=obj->y,.size=max(1,min(2,3-i)), .isLast = i == 4};
+        obj->hair[i] = (HAIR) {.x=obj->x,.y=obj->y,.size=P8max(1,P8min(2,3-i)), .isLast = i == 4};
     }
 }
 
 static void set_hair_color(int djump) {
-    P8pal(8,(djump==1 ? 8 : (djump==2 ?(7+flr(((int)(((float)frames)/3.0))%2)*4) : 12)));
+    P8pal(8,(djump==1 ? 8 : (djump==2 ?(7+P8flr(((int)(((float)frames)/3.0))%2)*4) : 12)));
 }
 
 static void draw_hair(OBJ* obj, int facing) {
@@ -854,7 +859,7 @@ static void BALLOON_init(OBJ* this) {
 static void BALLOON_update(OBJ* this) {
     if (this->spr==22) {
         this->offset+=0.01;
-        this->y=this->start+sin(this->offset)*2;
+        this->y=this->start+P8sin(this->offset)*2;
         OBJ* hit = OBJ_collide(this, OBJ_PLAYER, 0,0);
         if (hit != NULL && hit->djump<max_djump) {
             psfx(6);
@@ -968,7 +973,7 @@ static void FRUIT_update(OBJ* this) {
         destroy_object(this);
     }
     this->off+=1;
-    this->y=this->start+sin(this->off/40)*2.5;
+    this->y=this->start+P8sin(this->off/40)*2.5;
 }
 
 //fly_fruit
@@ -1001,7 +1006,7 @@ static void FLY_FRUIT_update(OBJ* this) {
             this->fly=true;
         }
         this->step+=0.05;
-        this->spd.y=sin(this->step)*0.5;
+        this->spd.y=P8sin(this->step)*0.5;
     }
     // collect
     OBJ* hit=OBJ_collide(this, OBJ_PLAYER,0,0);
@@ -1017,9 +1022,9 @@ static void FLY_FRUIT_update(OBJ* this) {
 static void FLY_FRUIT_draw(OBJ* this) {
     float off=0;
     if (!this->fly) {
-        float dir=sin(this->step);
+        float dir=P8sin(this->step);
         if (dir<0) {
-            off=1+max(0,sign(this->y-this->start));
+            off=1+P8max(0,sign(this->y-this->start));
         }
     } else {
         off=fmod(off+0.25, 3);
@@ -1082,9 +1087,9 @@ static void FAKE_WALL_draw(OBJ* this) {
     //tile=8,
     //if_not_fruit=true,
 static void KEY_update(OBJ* this) {
-    int was=flr(this->spr);
-    this->spr=9+(sin(frames/30)+0.5)*1;
-    int is=flr(this->spr);
+    int was=P8flr(this->spr);
+    this->spr=9+(P8sin(frames/30)+0.5)*1;
+    int is=P8flr(this->spr);
     if (is==10 && is!=was) {
         this->flip_x=!this->flip_x;
     }
@@ -1220,7 +1225,7 @@ static void BIG_CHEST_draw(OBJ* this) {
         for (int i = 0; i < this->particle_count; i++) {
             PARTICLE* p = &this->particles[i];
             p->y+=p->spd;
-            P8line(this->x+p->x,this->y+8-p->y,this->x+p->x,min(this->y+8-p->y+p->h,this->y+8),7);
+            P8line(this->x+p->x,this->y+8-p->y,this->x+p->x,P8min(this->y+8-p->y+p->h,this->y+8),7);
         }
     }
     P8spr(112,this->x,this->y+8,   1,1,false,false);
@@ -1249,7 +1254,7 @@ static void ORB_draw(OBJ* this) {
     P8spr(102,this->x,this->y,  1,1,false,false);
     float off=frames/30;
     for (int i=0; i <= 7; i++) {
-        P8circfill(this->x+4+cos(off+i/8)*8,this->y+4+sin(off+i/8)*8,1,7);
+        P8circfill(this->x+4+cos(off+i/8)*8,this->y+4+P8sin(off+i/8)*8,1,7);
     }
 }
 
@@ -1380,7 +1385,7 @@ static void kill_player(OBJ* obj) {
             .y=obj->y+4,
             .t=10,
             .spd2=(VEC){
-                .x=sin(angle)*3,
+                .x=P8sin(angle)*3,
                 .y=cos(angle)*3
             }
         };
@@ -1607,8 +1612,8 @@ void Celeste_P8_draw() {
     PARTICLE* p = &particles[0];
     while (!p->isLast) {
         p->x += p->spd;
-        p->y += sin(p->off);
-        p->off+= min(0.05,p->spd/32);
+        p->y += P8sin(p->off);
+        p->off+= P8min(0.05,p->spd/32);
         P8rectfill(p->x,p->y,p->x+p->s,p->y+p->s,p->c);
         if (p->x>128+4) { 
             p->x=-4;
@@ -1653,7 +1658,7 @@ void Celeste_P8_draw() {
             }
         }
         if (p!=NULL) {
-            float diff=min(24,40-fabsf(p->x+4-64));
+            float diff=P8min(24,40-P8abs(p->x+4-64));
             P8rectfill(0,0,diff,128,0);
             P8rectfill(128-diff,0,128,128,0);
         }
@@ -1687,12 +1692,12 @@ static void draw_time(float x, float y) {
 //////////////////////
 static float clamp(float val, float a, float b) {
 
-    return max(a, min(b, val));
+    return P8max(a, P8min(b, val));
 }
 static float appr(float val, float target, float amount) {
     return val > target 
-        ? max(val - amount, target) 
-        : min(val + amount, target);
+        ? P8max(val - amount, target) 
+        : P8min(val + amount, target);
 }
 
 static int sign(float v) {
@@ -1712,8 +1717,8 @@ static bool ice_at(int x,int y,int w,int h) {
 }
 
 static bool tile_flag_at(int x,int y,int w,int h,int flag) {
-    for (int i=max(0,flr(x/8)); i <= min(15,(x+w-1)/8); i++) {
-         for (int j=max(0,flr(y/8)); j <= min(15,(y+h-1)/8); j++) {
+    for (int i=P8max(0,P8flr(x/8)); i <= P8min(15,(x+w-1)/8); i++) {
+         for (int j=P8max(0,P8flr(y/8)); j <= P8min(15,(y+h-1)/8); j++) {
             if (P8fget(tile_at(i,j),flag)) {
                 return true;
             }
@@ -1727,8 +1732,8 @@ static int tile_at(int x,int y) {
 }
 
 static bool spikes_at(int x,int y,int w,int h,float xspd,float yspd) {
-    for (int i=max(0,flr(x/8)); i <= min(15,(x+w-1)/8); i++) {
-        for (int j=max(0,flr(y/8)); j <= min(15,(y+h-1)/8); j++) {
+    for (int i=P8max(0,P8flr(x/8)); i <= P8min(15,(x+w-1)/8); i++) {
+        for (int j=P8max(0,P8flr(y/8)); j <= P8min(15,(y+h-1)/8); j++) {
             int tile=tile_at(i,j);
             if (tile==17 && ((y+h-1)%8>=6 || y+h==j*8+8) && yspd>=0) {
                 return true;
