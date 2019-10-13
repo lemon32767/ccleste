@@ -52,7 +52,7 @@ void Celeste_P8_set_call_func(callback_func_t func) {
 #define P8min fmin
 #define P8flr floor
 static inline float P8sin(float x) {
-	return -sin(x*(2*M_PI)); //https://pico-8.fandom.com/wiki/Math
+	return -sin(x*6.2831853071796); //https://pico-8.fandom.com/wiki/Math
 }
 #define P8cos(x) -P8sin(x+0.25) //cos(x) = sin(x+pi/2)
 static inline float P8rnd(float max) {
