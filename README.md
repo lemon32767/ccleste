@@ -15,4 +15,3 @@ As of the time of writing, the game boots and is beatable, however:
 	- Palette swapping is not yet complete, a rewrite to how sprites are handled will be done soon.
 	- Audio isn't implemented at all yet.
 	- Only keyboard XC+arrow keys control.
-	- Trig functions are not correctly implemented.
