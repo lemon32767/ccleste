@@ -103,7 +103,7 @@ static inline void P8map(int mx, int my, int tx, int ty, int mw, int mh, int mas
 
 
 #define MAX_OBJECTS 16
-#define FRUIT_COUNT 29
+#define FRUIT_COUNT 30
 
 // ~celeste~
 // matt thorson + noel berry
