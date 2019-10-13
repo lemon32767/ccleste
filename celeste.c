@@ -114,7 +114,7 @@ static inline void P8map(int mx, int my, int tx, int ty, int mw, int mh, int mas
 typedef struct {float x,y;} VEC;
 typedef struct {int x,y;} VECI;
 
-static VECI room = (VECI){.x=0,.y=0};
+static VECI room = {.x=0,.y=0};
 //static int num_objects = 0;
 static int freeze = 0;
 static int shake = 0;
@@ -374,7 +374,8 @@ static struct objprop OBJTYPE_prop(OBJTYPE t) {
 		#undef X
 		default:;
 	}
-	return (struct objprop){/*dummy*/};
+	struct objprop dummy;
+	return dummy;
 }
 
 static OBJ objects[MAX_OBJECTS] = {{.active = false}};
