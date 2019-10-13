@@ -2,16 +2,8 @@
 
 This is a C source port of the [original celeste (Celeste classic)](https://www.lexaloffle.com/bbs/?tid=2145) for the PICO-8.
 
-The actual game is in celeste.c, all other files are but the 'frontend' to provide graphics and (eventually) audio output, using [allegro5](https://liballeg.org/).
+This is only a platform agnostic reimplementation of the original lua code. Meaning that it has no external dependencies (only the C standard library), it can be seen as the "backend" of the game; it's just the raw game logic without any assets or anything.
 
-Early work in progress.
+Eventually there will be documentation for this.
 
-![screenshot](https://raw.githubusercontent.com/lemon-sherbet/ccleste/master/screenshot.png)
-
-## Known Issues/Compatibility
-
-As of the time of writing, the game boots and is beatable, however:
-	
-	- Palette swapping is not yet complete, a rewrite to how sprites are handled will be done soon.
-	- Audio isn't implemented at all yet.
-	- Only keyboard XC+arrow keys control.
+Check out https://github.com/lemon-sherbet/allegro-ccleste for a playable frontend.
