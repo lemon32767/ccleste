@@ -31,4 +31,4 @@ release: $(OUT)
 
 #  clean
 clean:
-	$(RM) $(OBJS) $%.d
+	$(RM) $(OBJS) *.d
