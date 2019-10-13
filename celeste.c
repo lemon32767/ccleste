@@ -252,7 +252,7 @@ typedef struct {
 } PARTICLE;
 static PARTICLE particles[25];
 int particle_count = 0;
-static PARTICLE dead_particles[17];
+static PARTICLE dead_particles[25];
 int dead_particles_count = 0;
 //top level init code has been moved into a function
 static void PRELUDE_initparticles() {
