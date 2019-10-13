@@ -134,7 +134,8 @@ void EmuDraw() {
 			ALLEGRO_COLOR col = base_palette[i];
 			//float diff = (pix.r-col.r)*(pix.r-col.r) + (pix.g-col.g)*(pix.g-col.g) + (pix.b-col.b)*(pix.b-col.b);
 			
-			if ((pix.r+pix.g+pix.b) == (col.r+col.g+col.b)) {
+//			if ((pix.r+pix.g+pix.b) == (col.r+col.g+col.b)) {
+			if (*(long*)&pix == *(long*)&col) { //cool hack but is it portable
 				ALLEGRO_COLOR newpix = palette_swap[i];
 				//al_put_pixel(x, y, newpix); //this doesnt work..??
 				//but this does:
@@ -159,7 +160,7 @@ static int camera_x = 0, camera_y = 0; //used by pico8's camera()
 Celeste_P8_val HandleP8Call(CELESTE_P8_CALLBACK_TYPE t, ...) {
 	va_list args;
 	va_start(args, t);
-	Celeste_P8_val ret;
+	Celeste_P8_val ret = {.i = 0};
 
 	#define NEXT_INT() va_arg(args, int)
 	#define NEXT_BOOL() va_arg(args, Celeste_P8_bool_t)
@@ -188,9 +189,11 @@ Celeste_P8_val HandleP8Call(CELESTE_P8_CALLBACK_TYPE t, ...) {
 			bool flipx = NEXT_BOOL();
 			bool flipy = NEXT_BOOL();
 
-			int flag = (flipx ? ALLEGRO_FLIP_HORIZONTAL : 0) | (flipy ? ALLEGRO_FLIP_VERTICAL : 0);
-			//al_draw_bitmap_region(atlas, 8*(sprite%128), 8*(sprite/128), 8*cols, 8*rows, x, y, flag);
-			if (sprites[sprite]) al_draw_bitmap(sprites[sprite], x - camera_x, y - camera_y, flag);
+			if (sprite >= 0) {
+				int flag = (flipx ? ALLEGRO_FLIP_HORIZONTAL : 0) | (flipy ? ALLEGRO_FLIP_VERTICAL : 0);
+				//al_draw_bitmap_region(atlas, 8*(sprite%128), 8*(sprite/128), 8*cols, 8*rows, x, y, flag);
+				if (sprites[sprite]) al_draw_bitmap(sprites[sprite], x - camera_x, y - camera_y, flag);
+			}
 		)
 		OP(BTN,
 			int b = NEXT_INT();
