@@ -146,25 +146,25 @@ static int k_dash = 5;
 //with this X macro table thing we can define the properties that each object type has, in the original lua code these properties
 //are inferred from the `types` table
 #define OBJ_PROP_LIST() \
-	/* TYPE		 TILE HAS INIT	HAS UPDATE	HAS DRAW  */\
-	X(PLAYER,	   -1,	true,		true,		true)\
-	X(PLAYER_SPAWN,  1,	true,		true,		true)\
-	X(SPRING,	   18,	true,		true,	   false)\
-	X(BALLOON,	  22,	true,		true,		true)\
-	X(SMOKE,		-1,	true,		true,	   false)\
-	X(PLATFORM,	 -1,	true,		true,		true)\
-	X(FALL_FLOOR,   23,	true,		true,		true)\
-	X(FRUIT,		26,	true,		true,	   false)\
-	X(FLY_FRUIT,	28,	true,		true,		true)\
-	X(FAKE_WALL,	64,   false,		true,		true)\
-	X(KEY,		   8,   false,		true,	   false)\
-	X(CHEST,		20,	true,		true,	   false)\
-	X(LIFEUP,	   -1,	true,		true,		true)\
-	X(MESSAGE,	  86,   false,	   false,		true)\
-	X(BIG_CHEST,	96,	true,	   false,		true)\
-	X(ORB,		  -1,	true,	   false,		true)\
-	X(FLAG,		118,	true,	   false,		true)\
-	X(ROOM_TITLE,   -1,	true,	   false,		true)
+	/* TYPE        TILE   HAS INIT  HAS UPDATE  HAS DRAW  */\
+	X(PLAYER,       -1,     true,     true,      true)\
+	X(PLAYER_SPAWN,  1,     true,     true,      true)\
+	X(SPRING,       18,     true,     true,      false)\
+	X(BALLOON,      22,     true,     true,      true)\
+	X(SMOKE,        -1,     true,     true,      false)\
+	X(PLATFORM,     -1,     true,     true,      true)\
+	X(FALL_FLOOR,   23,     true,     true,      true)\
+	X(FRUIT,        26,     true,     true,      false)\
+	X(FLY_FRUIT,    28,     true,     true,      true)\
+	X(FAKE_WALL,    64,     false,    true,      true)\
+	X(KEY,           8,     false,    true,      false)\
+	X(CHEST,        20,     true,     true,      false)\
+	X(LIFEUP,       -1,     true,     true,      true)\
+	X(MESSAGE,      86,     false,    false,     true)\
+	X(BIG_CHEST,    96,     true,     false,     true)\
+	X(ORB,          -1,     true,     false,     true)\
+	X(FLAG,        118,     true,     false,     true)\
+	X(ROOM_TITLE,   -1,     true,     false,     true)
 
 typedef enum {
 	#define X(t,...) OBJ_##t,
