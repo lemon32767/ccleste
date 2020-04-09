@@ -374,7 +374,7 @@ static struct objprop OBJTYPE_prop(OBJTYPE t) {
 		#undef X
 		default:;
 	}
-	struct objprop dummy;
+	struct objprop dummy = {0};
 	return dummy;
 }
 
@@ -1255,7 +1255,7 @@ static void ORB_draw(OBJ* this) {
 	P8spr(102,this->x,this->y,  1,1,false,false);
 	float off=frames/30;
 	for (int i=0; i <= 7; i++) {
-		P8circfill(this->x+4+cos(off+i/8)*8,this->y+4+P8sin(off+i/8)*8,1,7);
+		P8circfill(this->x+4+P8cos(off+i/8)*8,this->y+4+P8sin(off+i/8)*8,1,7);
 	}
 }
 
@@ -1387,7 +1387,7 @@ static void kill_player(OBJ* obj) {
 			.t=10,
 			.spd2=(VEC){
 				.x=P8sin(angle)*3,
-				.y=cos(angle)*3
+				.y=P8cos(angle)*3
 			}
 		};
 		restart_room();

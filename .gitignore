@@ -1,5 +1,8 @@
 *.d
-ccleste
+celeste-sdl12
 a.out
 *.o
-classic.lua
+build/
+*.3dsx
+*.elf
+*.smdh
