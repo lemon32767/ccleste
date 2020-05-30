@@ -24,6 +24,20 @@ libctru
 devkitARM
 ```
 
+# Controls
+
+|PC   |3DS   |Action      |
+|:---:|:----:|-----------:|
+|LEFT |LEFT  | Move left  |
+|RIGHT|RIGHT | Move right |
+|DOWN |DOWN  | Look down  |
+|UP   |UP    | Look up    |
+|Z/C  |A     | Jump       |
+|X/V  |B/X   | Dash       |
+|ENTER|START | Pause      |
+|F    |SELECT|Fullscreen  |
+|ESC  |n/a   | Quit       |
+
 # credits
 
 Sound wave files are taken from [https://github.com/JeffRuLz/Celeste-Classic-GBA/tree/master/maxmod_data](https://github.com/JeffRuLz/Celeste-Classic-GBA/tree/master/maxmod_data),
