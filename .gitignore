@@ -2,6 +2,7 @@
 celeste-sdl12
 a.out
 *.o
+data-old/
 build/
 *.3dsx
 *.elf

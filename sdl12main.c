@@ -11,9 +11,10 @@
 
 static void ErrLog(char* fmt, ...) {
 #ifdef _3DS
-	FILE* f = fopen("sdmc:/ccleste.txt", "a");
+	/*FILE* f = fopen("sdmc:/ccleste.txt", "a");
 	if (!f) return;
-	fprintf(f, "%li \t", (long int)time(NULL));
+	fprintf(f, "%li \t", (long int)time(NULL));*/
+	FILE* f = stdout; //bottom screen console
 #else
 	FILE* f = stderr;
 #endif
@@ -23,7 +24,7 @@ static void ErrLog(char* fmt, ...) {
 	vfprintf(f, fmt, ap);
 	va_end(ap);
 
-	if (f != stderr) fclose(f);
+	if (f != stderr && f != stdout) fclose(f);
 }
 
 SDL_Surface* screen = NULL;
@@ -36,9 +37,9 @@ Mix_Music* mus[6] = {NULL};
 #define PICO8_H 128
 
 #ifdef _3DS
-int scale = 2;
+static const int scale = 2;
 #else
-int scale = 4;
+static int scale = 4;
 #endif
 
 static const SDL_Color base_palette[16] = {
@@ -59,8 +60,8 @@ static const SDL_Color base_palette[16] = {
 	{0xff, 0x77, 0xa8},
 	{0xff, 0xcc, 0xaa}
 };
-static void ResetPalette(void) {
-	SDL_SetPalette(screen, SDL_PHYSPAL|SDL_LOGPAL, (SDL_Color*)base_palette, 0, 16);
+static void ResetPalette(SDL_Surface* surf) {
+	SDL_SetPalette(surf, SDL_PHYSPAL|SDL_LOGPAL, (SDL_Color*)base_palette, 0, 16);
 	//memcpy(screen->format->palette->colors, base_palette, 16*sizeof(SDL_Color));
 }
 
@@ -118,7 +119,9 @@ static void loadbmpscale(char* filename, SDL_Surface** s) {
 
 	int w = bmp->w, h = bmp->h;
 
-	unsigned char* data = SDL_malloc(w*h*scale*scale);
+	surf = SDL_CreateRGBSurface(SDL_SWSURFACE, w*scale, h*scale, 8, 0,0,0,0);
+	assert(surf != NULL);
+	unsigned char* data = surf->pixels;
 	/*memcpy((_S)->format->palette->colors, base_palette, 16*sizeof(SDL_Color));*/
 	for (int y = 0; y < h; y++) for (int x = 0; x < w; x++) {
 		unsigned char pix = getpixel(bmp, x, y);
@@ -127,16 +130,23 @@ static void loadbmpscale(char* filename, SDL_Surface** s) {
 		}
 	}
 	SDL_FreeSurface(bmp);
-	surf = SDL_CreateRGBSurfaceFrom(data, w*scale, h*scale, 8, w*scale, 0,0,0,0);
 	SDL_SetPalette(surf, SDL_PHYSPAL | SDL_LOGPAL, (SDL_Color*)base_palette, 0, 16);
 	SDL_SetColorKey(surf, SDL_SRCCOLORKEY, 0);
 	//SDL_SaveBMP(_S, #_S "x.bmp");
 	*s = surf;
 }
 
+#define LOGLOAD(w) printf("loading %s...", w)
+#define LOGDONE() printf("done\n")
+
 static void LoadData(void) {
+	LOGLOAD("gfx.bmp");
 	loadbmpscale("gfx.bmp", &gfx);
+	LOGDONE();
+	
+	LOGLOAD("font.bmp");
 	loadbmpscale("font.bmp", &font);
+	LOGDONE();
 
 	static signed char sndids[] = {0,1,2,3,4,5,6,7,8,9,13,14,15,16,23,35,37,38,40,50,51,54,55, -1};
 	for (signed char* iid = sndids; *iid != -1; iid++) {
@@ -144,26 +154,30 @@ static void LoadData(void) {
 		char fname[20];
 		sprintf(fname, "snd%i.wav", id);
 		char path[4096];
+		LOGLOAD(fname);
 		GetDataPath(path, sizeof path, fname);
 		snd[id] = Mix_LoadWAV(path);
 		if (!snd[id]) {
 			ErrLog("snd%i: Mix_LoadWAV: %s\n", id, Mix_GetError());
 		}
+		LOGDONE();
 	}
 	static signed char musids[] = {0,10,20,30,40, -1};
 	for (signed char* iid = musids; *iid != -1; iid++) {
 		int id = *iid;
 		char fname[20];
-		sprintf(fname, "mus%i.xm", id);
+		sprintf(fname, "mus%i.ogg", id);
+		LOGLOAD(fname);
 		char path[4096];
 		GetDataPath(path, sizeof path, fname);
 		mus[id/10] = Mix_LoadMUS(path);
 		if (!mus[id/10]) {
 			ErrLog("mus%i: Mix_LoadMUS: %s\n", id, Mix_GetError());
 		}
+		LOGDONE();
 	}
 }
-#include "data/tilemap.h"
+#include "tilemap.h"
 
 int buttons_state = 0;
 
@@ -175,46 +189,54 @@ int buttons_state = 0;
 	}                                                     \
 } while(0)
 
+static void p8_print(char* str, float x, float y, int col);
+
 int main(int argc, char** argv) {
 	SDL_CHECK(SDL_Init(SDL_INIT_AUDIO | SDL_INIT_VIDEO) == 0);
+	int videoflag = SDL_SWSURFACE | SDL_HWPALETTE;
 #ifdef _3DS
+	fsInit();
 	romfsInit();
-	sdmcInit();
+	videoflag |= SDL_CONSOLEBOTTOM | SDL_TOPSCR | SDL_FITHEIGHT;
 	SDL_N3DSKeyBind(KEY_CPAD_UP|KEY_CSTICK_UP, SDLK_UP);
 	SDL_N3DSKeyBind(KEY_CPAD_DOWN|KEY_CSTICK_DOWN, SDLK_DOWN);
 	SDL_N3DSKeyBind(KEY_CPAD_LEFT|KEY_CSTICK_LEFT, SDLK_LEFT);
 	SDL_N3DSKeyBind(KEY_CPAD_RIGHT|KEY_CSTICK_RIGHT, SDLK_RIGHT);
+	SDL_N3DSKeyBind(KEY_SELECT, SDLK_f); //to switch full screen
 #endif
-	int mixflag = MIX_INIT_MOD;
+	SDL_CHECK(screen = SDL_SetVideoMode(PICO8_W*scale, PICO8_H*scale, 8, videoflag));
+	SDL_WM_SetCaption("Celeste", NULL);
+	int mixflag = MIX_INIT_OGG;
 	if (Mix_Init(mixflag) != mixflag) {
 		ErrLog("Mix_Init: %s\n", Mix_GetError());
 	}
-	if (Mix_OpenAudio(22050, AUDIO_U16, 1, 1024) < 0) {
+	if (Mix_OpenAudio(22050, AUDIO_S16SYS, 1, 1024) < 0) {
 		ErrLog("Mix_Init: %s\n", Mix_GetError());
 	}
-	SDL_CHECK(screen = SDL_SetVideoMode(PICO8_W*scale, PICO8_H*scale, 8, SDL_SWSURFACE | SDL_HWPALETTE));
-	ResetPalette();
+	ResetPalette(screen);
 	SDL_ShowCursor(0);
+
+	printf("now loading...\n");
 
 	{
 		const unsigned char loading_bmp[] = {
-			0x42, 0x4d, 0xca, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x82, 0x00,
-			0x00, 0x00, 0x6c, 0x00, 0x00, 0x00, 0x24, 0x00, 0x00, 0x00, 0x09, 0x00,
-			0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x48, 0x00,
-			0x00, 0x00, 0x23, 0x2e, 0x00, 0x00, 0x23, 0x2e, 0x00, 0x00, 0x02, 0x00,
-			0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x42, 0x47, 0x52, 0x73, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0xe0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00,
-			0x00, 0x00, 0x66, 0x3e, 0xf1, 0x24, 0xf0, 0x00, 0x00, 0x00, 0x49, 0x44,
-			0x92, 0x24, 0x90, 0x00, 0x00, 0x00, 0x49, 0x3c, 0x92, 0x24, 0x90, 0x00,
-			0x00, 0x00, 0x49, 0x04, 0x92, 0x24, 0x90, 0x00, 0x00, 0x00, 0x46, 0x38,
-			0xf0, 0x3c, 0xf0, 0x00, 0x00, 0x00, 0x40, 0x00, 0x12, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0xc0, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00
+			0x42,0x4d,0xca,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x82,0x00,
+			0x00,0x00,0x6c,0x00,0x00,0x00,0x24,0x00,0x00,0x00,0x09,0x00,
+			0x00,0x00,0x01,0x00,0x01,0x00,0x00,0x00,0x00,0x00,0x48,0x00,
+			0x00,0x00,0x23,0x2e,0x00,0x00,0x23,0x2e,0x00,0x00,0x02,0x00,
+			0x00,0x00,0x02,0x00,0x00,0x00,0x42,0x47,0x52,0x73,0x00,0x00,
+			0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+			0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+			0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+			0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x02,0x00,
+			0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+			0x00,0x00,0x00,0x00,0x00,0x00,0xff,0xff,0xff,0x00,0x00,0x00,
+			0x00,0x00,0xe0,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x10,0x00,
+			0x00,0x00,0x66,0x3e,0xf1,0x24,0xf0,0x00,0x00,0x00,0x49,0x44,
+			0x92,0x24,0x90,0x00,0x00,0x00,0x49,0x3c,0x92,0x24,0x90,0x00,
+			0x00,0x00,0x49,0x04,0x92,0x24,0x90,0x00,0x00,0x00,0x46,0x38,
+			0xf0,0x3c,0xf0,0x00,0x00,0x00,0x40,0x00,0x12,0x00,0x00,0x00,
+			0x00,0x00,0xc0,0x00,0x10,0x00,0x00,0x00,0x00,0x00
 		};
 		const unsigned int loading_bmp_len = 202;
 		SDL_RWops* rw = SDL_RWFromConstMem(loading_bmp, loading_bmp_len);
@@ -235,7 +257,10 @@ int main(int argc, char** argv) {
 
 	Celeste_P8_init();
 
+	printf("ready\n");
+
 	int running = 1;
+	int paused = 0;
 	while (running) {
 		SDL_Event ev;
 		while (SDL_PollEvent(&ev)) switch (ev.type) {
@@ -244,9 +269,16 @@ int main(int argc, char** argv) {
 				if (ev.key.keysym.sym == SDLK_ESCAPE) {
 					running = 0;
 					break;
+				} else if (ev.key.keysym.sym == SDLK_RETURN) {
+					if (paused) Mix_Resume(-1), Mix_ResumeMusic(); else Mix_Pause(-1), Mix_PauseMusic();
+					paused = !paused;
+					break;
+				} else if (ev.key.keysym.sym == SDLK_f) {
+					SDL_WM_ToggleFullScreen(screen);
+					break;
 				}
 				//fallthrough
-			};
+			}
 			case SDL_KEYUP: {
 				int down = ev.type == SDL_KEYDOWN;
 				int b = -1;
@@ -268,9 +300,14 @@ int main(int argc, char** argv) {
 			}
 		}
 
-		Celeste_P8_update();
-		
-		Celeste_P8_draw();
+		if (paused) {
+			int x0 = PICO8_W/2-3*4, y0 = 8;
+			SDL_FillRect(screen, &(SDL_Rect){x0*scale,y0*scale, (6*4+1)*scale, 7*scale}, 7);
+			p8_print("paused", x0+1, y0+1, 1);
+		} else {
+			Celeste_P8_update();
+			Celeste_P8_draw();
+		}
 
 		/*for (int i = 0 ; i < 16;i++) {
 			SDL_Rect rc = {i*8*scale, 0, 8*scale, 4*scale};
@@ -294,12 +331,13 @@ int main(int argc, char** argv) {
 	SDL_FreeSurface(gfx);
 	SDL_FreeSurface(font);
 	for (int i = 0; i < (sizeof snd)/(sizeof *snd); i++) {
-		Mix_FreeChunk(snd[i]);
+		if (snd[i]) Mix_FreeChunk(snd[i]);
 	}
 	for (int i = 0; i < (sizeof mus)/(sizeof *mus); i++) {
-		Mix_FreeMusic(mus[i]);
+		if (mus[i]) Mix_FreeMusic(mus[i]);
 	}
 
+	Mix_CloseAudio();
 	Mix_Quit();
 	SDL_Quit();
 }
@@ -380,17 +418,31 @@ static inline void Xblit(SDL_Surface* src, SDL_Rect* srcrect, SDL_Surface* dst, 
 		int srcpitch = src->pitch;
 		unsigned char* dstpix = dst->pixels;
 		int dstpitch = dst->pitch;
-		if (color) {
-			for (int y = 0; y < h; y++) for (int x = 0; x < w; x++) {
-				unsigned char p = srcpix[srcx+x+(srcy+y)*srcpitch];
-				if (p) dstpix[dstrect->x+x + (dstrect->y+y)*dstpitch] = color;
-			}
-		} else {
-			for (int y = 0; y < h; y++) for (int x = 0; x < w; x++) {
-				unsigned char p = srcpix[srcx+x+(srcy+y)*srcpitch];
-				if (p) dstpix[dstrect->x+x + (dstrect->y+y)*dstpitch] = p;
-			}
-		}
+		#define _blitter(dp, xflip) do                                                                \
+		for (int y = 0; y < h; y++) for (int x = 0; x < w; x++) {                                       \
+		  unsigned char p = srcpix[!xflip ? srcx+x+(srcy+y)*srcpitch : srcx+(w-x-1)+(srcy+y)*srcpitch]; \
+		  if (p) dstpix[dstrect->x+x + (dstrect->y+y)*dstpitch] = dp;                                   \
+    } while(0)
+		if (color && flipx) _blitter(color, 1);
+		else if (!color && flipx) _blitter(p, 1);
+		else if (color && !flipx) _blitter(color, 0);
+		else if (!color && !flipx) _blitter(p, 0);
+		#undef _blitter
+	}
+}
+
+static void p8_print(char* str, float x, float y, int col) {
+	for (char c = *str; c; c = *(++str)) {
+		c &= 0x7F;
+		SDL_Rect srcrc = {8*(c%16), 8*(c/16)};
+		srcrc.x *= scale;
+		srcrc.y *= scale;
+		srcrc.w = srcrc.h = 8*scale;
+		
+		SDL_Rect dstrc = {x*scale, y*scale, scale, scale};
+		//TODO color
+		Xblit(font, &srcrc, screen, &dstrc, col, 0,0);
+		x += 4;
 	}
 }
 
@@ -419,8 +471,12 @@ Celeste_P8_val pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 			int index = INT_ARG();
 			int fade = INT_ARG();
 			int mask = INT_ARG();
-
-			if (mus[index/10]) Mix_PlayMusic(mus[index/10], -1);
+			
+			if (index == -1) { //stop playing
+				Mix_HaltMusic();
+			} else if (mus[index/10]) {
+				Mix_PlayMusic(mus[index/10], -1);
+			}
 		)
 		CASE(CELESTE_P8_SPR, //spr(sprite,x,y,cols,rows,flipx,flipy)
 			int sprite = INT_ARG();
@@ -461,15 +517,15 @@ Celeste_P8_val pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 			int b = INT_ARG();
 			if (a >= 0 && a < 16 && b >= 0 && b < 16) {
 				//swap palette colors
-				SDL_Color* c1 = &screen->format->palette->colors[a];
-				SDL_Color* c2 = &screen->format->palette->colors[b];
+				SDL_Color* c1 = &gfx->format->palette->colors[a];
+				SDL_Color* c2 = &gfx->format->palette->colors[b];
 				SDL_Color tmp = *c1;
 				*c1 = *c2;
 				*c2 = tmp;
 			}
 		)
 		CASE(CELESTE_P8_PAL_RESET, //pal()
-			ResetPalette();
+			ResetPalette(gfx);
 		)
 		CASE(CELESTE_P8_CIRCFILL, //circfill(x,y,r,col)
 			float cx = FLOAT_ARG() - camera_x;
@@ -512,18 +568,14 @@ Celeste_P8_val pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 			float y = FLOAT_ARG() - camera_y;
 			int col = INT_ARG() % 16;
 
-			for (char c = *str; c; c = *(++str)) {
-				c &= 127;
-				SDL_Rect srcrc = {8*(c%16), 8*(c/16)};
-				srcrc.x *= scale;
-				srcrc.y *= scale;
-				srcrc.w = srcrc.h = 8*scale;
-				
-				SDL_Rect dstrc = {x*scale, y*scale, scale, scale};
-				//TODO color
-				Xblit(font, &srcrc, screen, &dstrc, col, 0,0);
-				x += 4;
+#ifdef _3DS
+			if (!strcmp(str, "x+c")) {
+				//this is confusing, as 3DS uses a+b button, so use this hack to make it more appropiate
+				str = "a+b";
 			}
+#endif
+
+			p8_print(str,x,y,col);
 		)
 		CASE(CELESTE_P8_RECTFILL, //rectfill(x0,y0,x1,y1,col)
 			float x0 = FLOAT_ARG() - camera_x;
@@ -532,7 +584,7 @@ Celeste_P8_val pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 			float y1 = FLOAT_ARG() - camera_y;
 			int col = INT_ARG();
 			
-			SDL_Rect rc = {x0*scale,y0*scale,(x1-x0)*scale,(y1-y0)*scale};
+			SDL_Rect rc = {x0*scale,y0*scale,(x1-x0+1)*scale,(y1-y0+1)*scale};
 			SDL_FillRect(screen, &rc, col);
 		)
 		CASE(CELESTE_P8_LINE, //line(x0,y0,x1,y1,col)
@@ -645,3 +697,5 @@ static void Xline(int x0, int y0, int x1, int y1, unsigned char color) {
 	}
 	#undef PLOT
 }
+
+// vim: ts=2 sw=2 noexpandtab
