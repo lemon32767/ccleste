@@ -26,6 +26,6 @@ devkitARM
 
 # credits
 
-Sound and music assets in data/ are taken from [https://github.com/JeffRuLz/Celeste-Classic-GBA/tree/master/maxmod_data](https://github.com/JeffRuLz/Celeste-Classic-GBA/tree/master/maxmod_data)
+Sound wave files are taken from [https://github.com/JeffRuLz/Celeste-Classic-GBA/tree/master/maxmod_data](https://github.com/JeffRuLz/Celeste-Classic-GBA/tree/master/maxmod_data), music ogg files were obtained by converting the .wav dumps from pico 8, which I did using ffmpeg.
 
 All credit for the original games goes to the original developers (Matt Thorson & Noel Berry).
