@@ -52,9 +52,9 @@ void Celeste_P8_set_call_func(callback_func_t func) {
 #define P8min fmin
 #define P8flr floor
 static inline float P8sin(float x) {
-	return -sin(x*6.2831853071796); //https://pico-8.fandom.com/wiki/Math
+	return -sinf(x*6.2831853071796); //https://pico-8.fandom.com/wiki/Math
 }
-#define P8cos(x) -P8sin(x+0.25) //cos(x) = sin(x+pi/2)
+#define P8cos(x) -P8sin((x)+0.25) //cos(x) = sin(x+pi/2)
 static inline float P8rnd(float max) {
 	return Celeste_P8_call(CELESTE_P8_RND, max).f;
 }
@@ -1683,7 +1683,7 @@ static void draw_time(float x, float y) {
    
 	P8rectfill(x,y,x+32,y+6,0);
 	{
-		char str[16];
+		char str[27];
 		snprintf(str, sizeof(str), "%.2i:%.2i:%.2i", h, m, s);
 		P8print(str,x+1,y+1,7);
 	}
