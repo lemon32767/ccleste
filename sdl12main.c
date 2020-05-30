@@ -60,9 +60,18 @@ static const SDL_Color base_palette[16] = {
 	{0xff, 0x77, 0xa8},
 	{0xff, 0xcc, 0xaa}
 };
-static void ResetPalette(SDL_Surface* surf) {
-	SDL_SetPalette(surf, SDL_PHYSPAL|SDL_LOGPAL, (SDL_Color*)base_palette, 0, 16);
+static SDL_Color palette[16];
+
+static inline Uint32 getcolor(char idx) {
+	assert(idx >= 0 && idx < 16);
+	SDL_Color c = palette[(int)idx];
+	return SDL_MapRGB(screen->format, c.r,c.g,c.b);
+}
+
+static void ResetPalette(void) {
+	//SDL_SetPalette(surf, SDL_PHYSPAL|SDL_LOGPAL, (SDL_Color*)base_palette, 0, 16);
 	//memcpy(screen->format->palette->colors, base_palette, 16*sizeof(SDL_Color));
+	memcpy(palette, base_palette, sizeof palette);
 }
 
 static char* GetDataPath(char* path, int n, const char* fname) {
@@ -197,14 +206,14 @@ int main(int argc, char** argv) {
 #ifdef _3DS
 	fsInit();
 	romfsInit();
-	videoflag |= SDL_CONSOLEBOTTOM | SDL_TOPSCR | SDL_FITHEIGHT;
+	videoflag |= SDL_CONSOLEBOTTOM | SDL_TOPSCR;
 	SDL_N3DSKeyBind(KEY_CPAD_UP|KEY_CSTICK_UP, SDLK_UP);
 	SDL_N3DSKeyBind(KEY_CPAD_DOWN|KEY_CSTICK_DOWN, SDLK_DOWN);
 	SDL_N3DSKeyBind(KEY_CPAD_LEFT|KEY_CSTICK_LEFT, SDLK_LEFT);
 	SDL_N3DSKeyBind(KEY_CPAD_RIGHT|KEY_CSTICK_RIGHT, SDLK_RIGHT);
 	SDL_N3DSKeyBind(KEY_SELECT, SDLK_f); //to switch full screen
 #endif
-	SDL_CHECK(screen = SDL_SetVideoMode(PICO8_W*scale, PICO8_H*scale, 8, videoflag));
+	SDL_CHECK(screen = SDL_SetVideoMode(PICO8_W*scale, PICO8_H*scale, 32, videoflag));
 	SDL_WM_SetCaption("Celeste", NULL);
 	int mixflag = MIX_INIT_OGG;
 	if (Mix_Init(mixflag) != mixflag) {
@@ -213,7 +222,7 @@ int main(int argc, char** argv) {
 	if (Mix_OpenAudio(22050, AUDIO_S16SYS, 1, 1024) < 0) {
 		ErrLog("Mix_Init: %s\n", Mix_GetError());
 	}
-	ResetPalette(screen);
+	ResetPalette();
 	SDL_ShowCursor(0);
 
 	printf("now loading...\n");
@@ -302,7 +311,7 @@ int main(int argc, char** argv) {
 
 		if (paused) {
 			int x0 = PICO8_W/2-3*4, y0 = 8;
-			SDL_FillRect(screen, &(SDL_Rect){x0*scale,y0*scale, (6*4+1)*scale, 7*scale}, 7);
+			SDL_FillRect(screen, &(SDL_Rect){x0*scale,y0*scale, (6*4+1)*scale, 7*scale}, getcolor(7));
 			p8_print("paused", x0+1, y0+1, 1);
 		} else {
 			Celeste_P8_update();
@@ -346,8 +355,10 @@ static int gettileflag(int, int);
 static void Xline(int,int,int,int,unsigned char);
 
 //lots of code from https://github.com/SDL-mirror/SDL/blob/bc59d0d4a2c814900a506d097a381077b9310509/src/video/SDL_surface.c#L625
+//coordinates should be scaled already
 static inline void Xblit(SDL_Surface* src, SDL_Rect* srcrect, SDL_Surface* dst, SDL_Rect* dstrect, int color, int flipx, int flipy) {
 	assert(src && dst && !src->locked && !dst->locked);
+	assert(dst->format->BitsPerPixel == 32 && src->format->BitsPerPixel == 8);
 	SDL_Rect fulldst;
 	/* If the destination rectangle is NULL, use the entire dest surface */
 	if (!dstrect)
@@ -416,12 +427,11 @@ static inline void Xblit(SDL_Surface* src, SDL_Rect* srcrect, SDL_Surface* dst, 
 	if (w && h) {
 		unsigned char* srcpix = src->pixels;
 		int srcpitch = src->pitch;
-		unsigned char* dstpix = dst->pixels;
-		int dstpitch = dst->pitch;
-		#define _blitter(dp, xflip) do                                                                \
-		for (int y = 0; y < h; y++) for (int x = 0; x < w; x++) {                                       \
-		  unsigned char p = srcpix[!xflip ? srcx+x+(srcy+y)*srcpitch : srcx+(w-x-1)+(srcy+y)*srcpitch]; \
-		  if (p) dstpix[dstrect->x+x + (dstrect->y+y)*dstpitch] = dp;                                   \
+		Uint32* dstpix = dst->pixels;
+    #define _blitter(dp, xflip) do                                                                  \
+    for (int y = 0; y < h; y++) for (int x = 0; x < w; x++) {                                       \
+      unsigned char p = srcpix[!xflip ? srcx+x+(srcy+y)*srcpitch : srcx+(w-x-1)+(srcy+y)*srcpitch]; \
+      if (p) dstpix[dstrect->x+x + (dstrect->y+y)*dst->w] = getcolor(dp);                           \
     } while(0)
 		if (color && flipx) _blitter(color, 1);
 		else if (!color && flipx) _blitter(p, 1);
@@ -440,7 +450,6 @@ static void p8_print(char* str, float x, float y, int col) {
 		srcrc.w = srcrc.h = 8*scale;
 		
 		SDL_Rect dstrc = {x*scale, y*scale, scale, scale};
-		//TODO color
 		Xblit(font, &srcrc, screen, &dstrc, col, 0,0);
 		x += 4;
 	}
@@ -471,11 +480,13 @@ Celeste_P8_val pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 			int index = INT_ARG();
 			int fade = INT_ARG();
 			int mask = INT_ARG();
+
+			(void)mask; //we do not care about this since sdl mixer keeps sounds and music separate
 			
 			if (index == -1) { //stop playing
-				Mix_HaltMusic();
+				Mix_FadeOutMusic(fade);
 			} else if (mus[index/10]) {
-				Mix_PlayMusic(mus[index/10], -1);
+				Mix_FadeInMusic(mus[index/10], -1, fade);
 			}
 		)
 		CASE(CELESTE_P8_SPR, //spr(sprite,x,y,cols,rows,flipx,flipy)
@@ -486,6 +497,8 @@ Celeste_P8_val pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 			int rows = INT_ARG();
 			int flipx = BOOL_ARG();
 			int flipy = BOOL_ARG();
+
+			assert(rows == 1 && cols == 1);
 
 			if (sprite >= 0) {
 				SDL_Rect srcrc = {
@@ -499,7 +512,6 @@ Celeste_P8_val pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 					(x - camera_x)*scale, (y - camera_y)*scale,
 					scale, scale
 				};
-				//TODO flipping
 				Xblit(gfx, &srcrc, screen, &dstrc, 0,flipx,flipy);
 			}
 		)
@@ -517,22 +529,18 @@ Celeste_P8_val pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 			int b = INT_ARG();
 			if (a >= 0 && a < 16 && b >= 0 && b < 16) {
 				//swap palette colors
-				SDL_Color* c1 = &gfx->format->palette->colors[a];
-				SDL_Color* c2 = &gfx->format->palette->colors[b];
-				SDL_Color tmp = *c1;
-				*c1 = *c2;
-				*c2 = tmp;
+				palette[a] = base_palette[b];
 			}
 		)
 		CASE(CELESTE_P8_PAL_RESET, //pal()
-			ResetPalette(gfx);
+			ResetPalette();
 		)
 		CASE(CELESTE_P8_CIRCFILL, //circfill(x,y,r,col)
 			float cx = FLOAT_ARG() - camera_x;
 			float cy = FLOAT_ARG() - camera_y;
 			float r = FLOAT_ARG();
 			int col = INT_ARG();
-			{	r *= scale, cx *= scale, cy *= scale;
+			{
 				int f = 1 - r; //used to track the progress of the drawn circle (since its semi-recursive)
 				int ddFx = 1; //step x
 				int ddFy = -2 * r; //step y
@@ -583,9 +591,13 @@ Celeste_P8_val pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 			float x1 = FLOAT_ARG() - camera_x;
 			float y1 = FLOAT_ARG() - camera_y;
 			int col = INT_ARG();
-			
-			SDL_Rect rc = {x0*scale,y0*scale,(x1-x0+1)*scale,(y1-y0+1)*scale};
-			SDL_FillRect(screen, &rc, col);
+
+			int w = (x1-x0+1)*scale;
+			int h = (y1-y0+1)*scale;
+			if (w>0 && h>0) {
+				SDL_Rect rc = {x0*scale,y0*scale, w,h};
+				SDL_FillRect(screen, &rc, getcolor(col));
+			}
 		)
 		CASE(CELESTE_P8_LINE, //line(x0,y0,x1,y1,col)
 			float x0 = FLOAT_ARG() - camera_x;
@@ -643,7 +655,8 @@ Celeste_P8_val pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 							dstrc.w = dstrc.h = 8;
 						}
 
-						SDL_BlitSurface(gfx, &srcrc, screen, &dstrc);
+						//SDL_BlitSurface(gfx, &srcrc, screen, &dstrc);
+						Xblit(gfx, &srcrc, screen, &dstrc, 0, 0, 0);
 					}
 				}
 			}
@@ -659,15 +672,20 @@ static int gettileflag(int tile, int flag) {
 	return tile < sizeof(tile_flags)/sizeof(*tile_flags) && (tile_flags[tile] & (1 << flag)) != 0;
 }
 
+//coordinates should NOT be scaled before calling this
 static void Xline(int x0, int y0, int x1, int y1, unsigned char color) {
 	#define CLAMP(v,min,max) v = v < min ? min : v >= max ? max-1 : v;
 	CLAMP(x0,0,screen->w);
 	CLAMP(y0,0,screen->h);
 	CLAMP(x1,0,screen->w);
 	CLAMP(y1,0,screen->h);
+
+	Uint32 realcolor = getcolor(color);
+
 	#undef CLAMP
-	//x0 *= scale, x1 *= scale, y0 *= scale, y1 *= scale;
-	#define PLOT(x,y,c) (((Uint8*)screen->pixels)[x+y*screen->pitch] = (c))
+  #define PLOT(x,y) do {                                                       \
+     SDL_FillRect(screen, &(SDL_Rect){x*scale,y*scale,scale,scale}, realcolor);                \
+	} while (0)
 	int sx, sy, dx, dy, err, e2;
 	dx = abs(x1 - x0);
 	dy = abs(y1 - y0);
@@ -676,15 +694,8 @@ static void Xline(int x0, int y0, int x1, int y1, unsigned char color) {
 	if (x0 < x1) sx = 1; else sx = -1;
 	if (y0 < y1) sy = 1; else sy = -1;
 	err = dx - dy;
-
-	if (!dy) { //horizontal line
-		memset(screen->pixels+(x0<x1?x0:x1) + y0*screen->pitch, color, dx);
-	} else if (!dx) { //vertical line
-		for (int y = y0; y != y1; y += sy) {
-			PLOT(x0,y,color);
-		}
-	} else while (x0 != x1 || y0 != y1) {
-		PLOT(x0, y0, color);
+	while (x0 != x1 || y0 != y1) {
+		PLOT(x0, y0);
 		e2 = 2 * err;
 		if (e2 > -dy) {
 			err -= dy;
