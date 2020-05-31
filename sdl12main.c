@@ -63,8 +63,7 @@ static const SDL_Color base_palette[16] = {
 static SDL_Color palette[16];
 
 static inline Uint32 getcolor(char idx) {
-	assert(idx >= 0 && idx < 16);
-	SDL_Color c = palette[(int)idx];
+	SDL_Color c = palette[idx%16];
 	return SDL_MapRGB(screen->format, c.r,c.g,c.b);
 }
 
@@ -284,6 +283,9 @@ int main(int argc, char** argv) {
 					break;
 				} else if (ev.key.keysym.sym == SDLK_f) {
 					SDL_WM_ToggleFullScreen(screen);
+					break;
+				} else if (0 && ev.key.keysym.sym == SDLK_5) {
+					Celeste_P8__DEBUG();
 					break;
 				}
 				//fallthrough
@@ -540,7 +542,20 @@ Celeste_P8_val pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 			float cy = FLOAT_ARG() - camera_y;
 			float r = FLOAT_ARG();
 			int col = INT_ARG();
-			{
+
+			int realcolor = getcolor(col);
+
+			if (r <= 1) {
+				SDL_FillRect(screen, &(SDL_Rect){scale*(cx-1), scale*cy, scale*3, scale}, realcolor);
+				SDL_FillRect(screen, &(SDL_Rect){scale*cx, scale*(cy-1), scale, scale*3}, realcolor);
+			} else if (r <= 2) {
+				SDL_FillRect(screen, &(SDL_Rect){scale*(cx-2), scale*(cy-1), scale*5, scale*3}, realcolor);
+				SDL_FillRect(screen, &(SDL_Rect){scale*(cx-1), scale*(cy-2), scale*3, scale*5}, realcolor);
+			} else if (r <= 3) {
+				SDL_FillRect(screen, &(SDL_Rect){scale*(cx-3), scale*(cy-1), scale*7, scale*3}, realcolor);
+				SDL_FillRect(screen, &(SDL_Rect){scale*(cx-1), scale*(cy-3), scale*3, scale*7}, realcolor);
+				SDL_FillRect(screen, &(SDL_Rect){scale*(cx-2), scale*(cy-2), scale*5, scale*5}, realcolor);
+			} else { //i dont think the game uses this
 				int f = 1 - r; //used to track the progress of the drawn circle (since its semi-recursive)
 				int ddFx = 1; //step x
 				int ddFy = -2 * r; //step y
@@ -683,8 +698,8 @@ static void Xline(int x0, int y0, int x1, int y1, unsigned char color) {
 	Uint32 realcolor = getcolor(color);
 
 	#undef CLAMP
-  #define PLOT(x,y) do {                                                       \
-     SDL_FillRect(screen, &(SDL_Rect){x*scale,y*scale,scale,scale}, realcolor);                \
+  #define PLOT(x,y) do {                                                        \
+     SDL_FillRect(screen, &(SDL_Rect){x*scale,y*scale,scale,scale}, realcolor); \
 	} while (0)
 	int sx, sy, dx, dy, err, e2;
 	dx = abs(x1 - x0);
@@ -694,7 +709,12 @@ static void Xline(int x0, int y0, int x1, int y1, unsigned char color) {
 	if (x0 < x1) sx = 1; else sx = -1;
 	if (y0 < y1) sy = 1; else sy = -1;
 	err = dx - dy;
-	while (x0 != x1 || y0 != y1) {
+	if (!dy && !dx) return;
+	else if (!dx) { //vertical line
+		for (int y = y0; y != y1; y += sy) PLOT(x0,y);
+	} else if (!dy) { //horizontal line
+		for (int x = x0; x != x1; x += sx) PLOT(x,y0);
+	} while (x0 != x1 || y0 != y1) {
 		PLOT(x0, y0);
 		e2 = 2 * err;
 		if (e2 > -dy) {

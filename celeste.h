@@ -13,9 +13,11 @@ typedef union { float f; int i; } Celeste_P8_val;
 typedef Celeste_P8_val (*callback_func_t) (CELESTE_P8_CALLBACK_TYPE calltype, ...);
 
 extern void Celeste_P8_set_call_func(callback_func_t func);
-extern void Celeste_P8_init();
-extern void Celeste_P8_update();
-extern void Celeste_P8_draw();
+extern void Celeste_P8_init(void);
+extern void Celeste_P8_update(void);
+extern void Celeste_P8_draw(void);
+
+extern void Celeste_P8__DEBUG(void); //debug functionality
 
 typedef int Celeste_P8_bool_t;
 
