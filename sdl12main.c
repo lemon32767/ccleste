@@ -212,9 +212,9 @@ int main(int argc, char** argv) {
 	SDL_N3DSKeyBind(KEY_CPAD_DOWN|KEY_CSTICK_DOWN, SDLK_DOWN);
 	SDL_N3DSKeyBind(KEY_CPAD_LEFT|KEY_CSTICK_LEFT, SDLK_LEFT);
 	SDL_N3DSKeyBind(KEY_CPAD_RIGHT|KEY_CSTICK_RIGHT, SDLK_RIGHT);
-	SDL_N3DSKeyBind(KEY_Y, SDLK_f); //to switch full screen
+	SDL_N3DSKeyBind(KEY_SELECT, SDLK_f); //to switch full screen
 	
-	SDL_N3DSKeyBind(KEY_SELECT, SDLK_LSHIFT); //hold to reset / load/save state
+	SDL_N3DSKeyBind(KEY_Y, SDLK_LSHIFT); //hold to reset / load/save state
 	SDL_N3DSKeyBind(KEY_L, SDLK_d); //load state
 	SDL_N3DSKeyBind(KEY_R, SDLK_s); //save state
 #endif
