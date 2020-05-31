@@ -26,7 +26,8 @@ static void psfx(int num);
 static void restart_room(void);
 
 #define bool Celeste_P8_bool_t
-enum {false, true};
+#define false 0
+#define true 1
 
 static float clamp(float val, float a, float b);
 static float appr(float val, float target, float amount);
@@ -147,24 +148,24 @@ static int k_dash = 5;
 //are inferred from the `types` table
 #define OBJ_PROP_LIST() \
 	/* TYPE        TILE   HAS INIT  HAS UPDATE  HAS DRAW  */\
-	X(PLAYER,       -1,     true,     true,      true)\
-	X(PLAYER_SPAWN,  1,     true,     true,      true)\
-	X(SPRING,       18,     true,     true,      false)\
-	X(BALLOON,      22,     true,     true,      true)\
-	X(SMOKE,        -1,     true,     true,      false)\
-	X(PLATFORM,     -1,     true,     true,      true)\
-	X(FALL_FLOOR,   23,     true,     true,      true)\
-	X(FRUIT,        26,     true,     true,      false)\
-	X(FLY_FRUIT,    28,     true,     true,      true)\
-	X(FAKE_WALL,    64,     false,    true,      true)\
-	X(KEY,           8,     false,    true,      false)\
-	X(CHEST,        20,     true,     true,      false)\
-	X(LIFEUP,       -1,     true,     true,      true)\
-	X(MESSAGE,      86,     false,    false,     true)\
-	X(BIG_CHEST,    96,     true,     false,     true)\
-	X(ORB,          -1,     true,     false,     true)\
-	X(FLAG,        118,     true,     false,     true)\
-	X(ROOM_TITLE,   -1,     true,     false,     true)
+	X(PLAYER,       -1,     Y,        Y,          Y)\
+	X(PLAYER_SPAWN,  1,     Y,        Y,          Y)\
+	X(SPRING,       18,     Y,        Y,          N)\
+	X(BALLOON,      22,     Y,        Y,          Y)\
+	X(SMOKE,        -1,     Y,        Y,          N)\
+	X(PLATFORM,     -1,     Y,        Y,          Y)\
+	X(FALL_FLOOR,   23,     Y,        Y,          Y)\
+	X(FRUIT,        26,     Y,        Y,          N)\
+	X(FLY_FRUIT,    28,     Y,        Y,          Y)\
+	X(FAKE_WALL,    64,     N,        Y,          Y)\
+	X(KEY,           8,     N,        Y,          N)\
+	X(CHEST,        20,     Y,        Y,          N)\
+	X(LIFEUP,       -1,     Y,        Y,          Y)\
+	X(MESSAGE,      86,     N,        N,          Y)\
+	X(BIG_CHEST,    96,     Y,        N,          Y)\
+	X(ORB,          -1,     Y,        N,          Y)\
+	X(FLAG,        118,     Y,        N,          Y)\
+	X(ROOM_TITLE,   -1,     Y,        N,          Y)
 
 typedef enum {
 	#define X(t,...) OBJ_##t,
@@ -342,8 +343,8 @@ typedef struct {
 } OBJ;
 
 //OBJ function declarations fuckery
-#define when_true(x) static void x(OBJ* this);
-#define when_false(x) static void* x = NULL;
+#define when_Y(x) static void x(OBJ* this);
+#define when_N(x) static void* x = NULL;
 #define CAT(a,b) a##b
 #define X(name,t,has_init,has_update,has_draw) \
 	CAT(when_,has_init)(name##_init)\
@@ -367,9 +368,9 @@ static struct objprop OBJTYPE_prop(OBJTYPE t) {
 			case OBJ_##name:\
 				return (struct objprop) {\
 					.tile = t,\
-					.init = has_init ? name##_init : NULL,\
-					.update = has_update ? name##_update : NULL,\
-					.draw = has_draw ? name##_draw : NULL\
+					.init = name##_init, \
+					.update = name##_update, \
+					.draw = name##_draw \
 				};
 		OBJ_PROP_LIST()
 		#undef X
@@ -1769,3 +1770,37 @@ void Celeste_P8__DEBUG(void) {
 	if (is_title()) start_game = true, start_game_flash=1;
 	else next_room();
 }
+
+//all of the global game variables; this holds the entire game state (exc. music/sounds playing)
+#define LISTGVARS(V) \
+	V(room) V(freeze) V(shake) V(will_restart) V(delay_restart) V(got_fruit) \
+	V(has_dashed) V(sfx_timer) V(has_key) V(pause_player) V(flash_bg) V(music_timer) \
+	V(new_bg) V(frames) V(seconds) V(minutes) V(deaths) V(max_djump) V(start_game) \
+	V(start_game_flash) V(k_left) V(k_right) V(k_up) V(k_down) V(k_dash) V(clouds) \
+	V(particles) V(particle_count) V(dead_particles) V(dead_particles_count) V(objects)
+
+size_t Celeste_P8_get_state_size(void) {
+#define V_SIZE(v) (sizeof v) +
+	enum { //force comptime evaluation
+		sz = LISTGVARS(V_SIZE) - 0
+	};
+	return sz;
+#undef V_SIZE
+};
+
+#include <assert.h>
+
+void Celeste_P8_save_state(void* st) {
+	assert(st != NULL);
+#define V_SAVE(v) memcpy(st, &v, sizeof v), st += sizeof v;
+	LISTGVARS(V_SAVE)
+#undef V_SAVE
+}
+void Celeste_P8_load_state(void* st) {
+	assert(st != NULL);
+#define V_LOAD(v) memcpy(&v, st, sizeof v), st += sizeof v;
+	LISTGVARS(V_LOAD)
+#undef V_LOAD
+}
+
+#undef LISTGVARS

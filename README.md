@@ -26,17 +26,20 @@ devkitARM
 
 # Controls
 
-|PC   |3DS   |Action      |
-|:---:|:----:|-----------:|
-|LEFT |LEFT  | Move left  |
-|RIGHT|RIGHT | Move right |
-|DOWN |DOWN  | Look down  |
-|UP   |UP    | Look up    |
-|Z/C  |A     | Jump       |
-|X/V  |B/X   | Dash       |
-|ENTER|START | Pause      |
-|F    |SELECT|Fullscreen  |
-|ESC  |n/a   | Quit       |
+|PC                |3DS                |Action      |
+|:----------------:|:-----------------:|-----------:|
+|LEFT              |LEFT               | Move left  |
+|RIGHT             |RIGHT              | Move right |
+|DOWN              |DOWN               | Look down  |
+|UP                |UP                 | Look up    |
+|Z/C               |A                  | Jump       |
+|X/V               |B/X                | Dash       |
+|ENTER             |START              | Pause      |
+|F                 |Y                  | Fullscreen |
+|ESC               |n/a                | Quit       |
+|SHIFT+D           |SELECT+L           | Load state |
+|SHIFT+S           |SELECT+R           | Save state |
+|Hold SHIFT+ENTER+R|Hold SELECT+START+Y| Reset      |
 
 # credits
 

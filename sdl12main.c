@@ -198,6 +198,8 @@ int buttons_state = 0;
 } while(0)
 
 static void p8_print(char* str, float x, float y, int col);
+	
+static Mix_Music* current_music = NULL;
 
 int main(int argc, char** argv) {
 	SDL_CHECK(SDL_Init(SDL_INIT_AUDIO | SDL_INIT_VIDEO) == 0);
@@ -210,7 +212,11 @@ int main(int argc, char** argv) {
 	SDL_N3DSKeyBind(KEY_CPAD_DOWN|KEY_CSTICK_DOWN, SDLK_DOWN);
 	SDL_N3DSKeyBind(KEY_CPAD_LEFT|KEY_CSTICK_LEFT, SDLK_LEFT);
 	SDL_N3DSKeyBind(KEY_CPAD_RIGHT|KEY_CSTICK_RIGHT, SDLK_RIGHT);
-	SDL_N3DSKeyBind(KEY_SELECT, SDLK_f); //to switch full screen
+	SDL_N3DSKeyBind(KEY_Y, SDLK_f); //to switch full screen
+	
+	SDL_N3DSKeyBind(KEY_SELECT, SDLK_LSHIFT); //hold to reset / load/save state
+	SDL_N3DSKeyBind(KEY_L, SDLK_d); //load state
+	SDL_N3DSKeyBind(KEY_R, SDLK_s); //save state
 #endif
 	SDL_CHECK(screen = SDL_SetVideoMode(PICO8_W*scale, PICO8_H*scale, 32, videoflag));
 	SDL_WM_SetCaption("Celeste", NULL);
@@ -223,6 +229,8 @@ int main(int argc, char** argv) {
 	}
 	ResetPalette();
 	SDL_ShowCursor(0);
+
+	printf("game state size %gkb\n", (long unsigned)Celeste_P8_get_state_size()/1024.);
 
 	printf("now loading...\n");
 
@@ -263,13 +271,37 @@ int main(int argc, char** argv) {
 	Celeste_P8_val pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...);
 	Celeste_P8_set_call_func(pico8emu);
 
+	//for reset
+	void* initial_game_state = SDL_malloc(Celeste_P8_get_state_size());
+	if (initial_game_state) Celeste_P8_save_state(initial_game_state);
+
 	Celeste_P8_init();
 
 	printf("ready\n");
 
+	void* game_state = NULL;
+	Mix_Music* game_state_music = NULL;
+
 	int running = 1;
 	int paused = 0;
 	while (running) {
+		Uint8* kbstate = SDL_GetKeyState(NULL);
+		
+		static int reset_input_timer = 0;
+		//hold shift+return+r (select+start+y) to reset
+		if (initial_game_state != NULL && kbstate[SDLK_LSHIFT] && kbstate[SDLK_RETURN] && (kbstate[SDLK_r] || kbstate[SDLK_f])) {
+			reset_input_timer++;
+			if (reset_input_timer >= 30) {
+				reset_input_timer=0;
+				//reset
+				printf("game reset\n");
+				paused = 0;
+				Celeste_P8_load_state(initial_game_state);
+				Mix_HaltChannel(-1);
+				Mix_HaltMusic();
+				Celeste_P8_init();
+			}
+		} else reset_input_timer = 0;
 		SDL_Event ev;
 		while (SDL_PollEvent(&ev)) switch (ev.type) {
 			case SDL_QUIT: running = 0; break;
@@ -277,15 +309,35 @@ int main(int argc, char** argv) {
 				if (ev.key.keysym.sym == SDLK_ESCAPE) {
 					running = 0;
 					break;
-				} else if (ev.key.keysym.sym == SDLK_RETURN) {
+				} else if (ev.key.keysym.sym == SDLK_RETURN) { //do pause
 					if (paused) Mix_Resume(-1), Mix_ResumeMusic(); else Mix_Pause(-1), Mix_PauseMusic();
 					paused = !paused;
 					break;
-				} else if (ev.key.keysym.sym == SDLK_f) {
+				} else if (ev.key.keysym.sym == SDLK_f && !(kbstate[SDLK_LSHIFT] || kbstate[SDLK_RETURN])) {
 					SDL_WM_ToggleFullScreen(screen);
 					break;
 				} else if (0 && ev.key.keysym.sym == SDLK_5) {
 					Celeste_P8__DEBUG();
+					break;
+				} else if (ev.key.keysym.sym == SDLK_s && kbstate[SDLK_LSHIFT]) { //save state
+					game_state = game_state ? game_state : SDL_malloc(Celeste_P8_get_state_size());
+					if (game_state) {
+						printf("save state\n");
+						Celeste_P8_save_state(game_state);
+						game_state_music = current_music;
+					}
+					break;
+				} else if (ev.key.keysym.sym == SDLK_d && kbstate[SDLK_LSHIFT]) { //load state
+					if (game_state) {
+						printf("load state\n");
+						if (paused) paused = 0, Mix_Resume(-1), Mix_ResumeMusic();
+						Celeste_P8_load_state(game_state);
+						if (current_music != game_state_music) {
+							Mix_HaltMusic();
+							current_music = game_state_music;
+							if (game_state_music) Mix_PlayMusic(game_state_music, -1);
+						}
+					}
 					break;
 				}
 				//fallthrough
@@ -338,6 +390,9 @@ int main(int argc, char** argv) {
 		t++;
 		frame_start = SDL_GetTicks();
 	}
+
+	if (game_state) SDL_free(game_state);
+	if (initial_game_state) SDL_free(initial_game_state);
 
 	SDL_FreeSurface(gfx);
 	SDL_FreeSurface(font);
@@ -465,8 +520,8 @@ Celeste_P8_val pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 	va_start(args, call);
 	
 	#define   INT_ARG() va_arg(args, int)
-	#define  BOOL_ARG() va_arg(args, Celeste_P8_bool_t)
-	#define FLOAT_ARG() va_arg(args, double)
+	#define  BOOL_ARG() (Celeste_P8_bool_t)va_arg(args, int)
+	#define FLOAT_ARG() (float)va_arg(args, double)
 	#define RET_INT(_i)   do {ret.i = (_i); goto end;} while (0)
 	#define RET_FLOAT(_f) do {ret.f = (_f); goto end;} while (0)
 	#define RET_BOOL(_b) RET_INT(!!(_b))
@@ -487,8 +542,11 @@ Celeste_P8_val pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 			
 			if (index == -1) { //stop playing
 				Mix_FadeOutMusic(fade);
+				current_music = NULL;
 			} else if (mus[index/10]) {
-				Mix_FadeInMusic(mus[index/10], -1, fade);
+				Mix_Music* musi = mus[index/10];
+				current_music = musi;
+				Mix_FadeInMusic(musi, -1, fade);
 			}
 		)
 		CASE(CELESTE_P8_SPR, //spr(sprite,x,y,cols,rows,flipx,flipy)

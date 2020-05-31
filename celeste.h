@@ -9,7 +9,7 @@ typedef enum {
 } CELESTE_P8_CALLBACK_TYPE;
 
 typedef union { float f; int i; } Celeste_P8_val;
-
+typedef _Bool Celeste_P8_bool_t;
 typedef Celeste_P8_val (*callback_func_t) (CELESTE_P8_CALLBACK_TYPE calltype, ...);
 
 extern void Celeste_P8_set_call_func(callback_func_t func);
@@ -19,6 +19,9 @@ extern void Celeste_P8_draw(void);
 
 extern void Celeste_P8__DEBUG(void); //debug functionality
 
-typedef int Celeste_P8_bool_t;
+//state functionality
+size_t Celeste_P8_get_state_size(void);
+void Celeste_P8_save_state(void* st);
+void Celeste_P8_load_state(void* st);
 
 #endif
