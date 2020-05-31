@@ -207,7 +207,7 @@ int main(int argc, char** argv) {
 #ifdef _3DS
 	fsInit();
 	romfsInit();
-	videoflag |= SDL_CONSOLEBOTTOM | SDL_TOPSCR;
+	videoflag = SDL_DOUBLEBUF | SDL_HWSURFACE | SDL_CONSOLEBOTTOM | SDL_TOPSCR;
 	SDL_N3DSKeyBind(KEY_CPAD_UP|KEY_CSTICK_UP, SDLK_UP);
 	SDL_N3DSKeyBind(KEY_CPAD_DOWN|KEY_CSTICK_DOWN, SDLK_DOWN);
 	SDL_N3DSKeyBind(KEY_CPAD_LEFT|KEY_CSTICK_LEFT, SDLK_LEFT);
@@ -379,6 +379,9 @@ int main(int argc, char** argv) {
 
 		SDL_Flip(screen);
 
+#ifdef _3DS //using SDL_DOUBLEBUF for videomode makes it so SDL_Flip waits for Vsync; so we dont have to delay manually
+		SDL_Delay(1);
+#else
 		static int t = 0;
 		static unsigned frame_start = 0;
 		unsigned frame_end = SDL_GetTicks();
@@ -389,6 +392,7 @@ int main(int argc, char** argv) {
 		}
 		t++;
 		frame_start = SDL_GetTicks();
+#endif
 	}
 
 	if (game_state) SDL_free(game_state);
