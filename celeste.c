@@ -739,8 +739,8 @@ static void set_hair_color(int djump) {
 }
 
 static void draw_hair(OBJ* obj, int facing) {
-	int last_x=obj->x+4-facing*2;
-	int last_y=obj->y+(P8btn(k_down) ? 4 : 3);
+	float last_x=obj->x+4-facing*2;
+	float last_y=obj->y+(P8btn(k_down) ? 4 : 3);
 	HAIR* h;
 	int i = 0;
 	while (!(h = &obj->hair[i++])->isLast) {

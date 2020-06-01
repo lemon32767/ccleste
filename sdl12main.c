@@ -600,10 +600,12 @@ Celeste_P8_val pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 			ResetPalette();
 		)
 		CASE(CELESTE_P8_CIRCFILL, //circfill(x,y,r,col)
-			float cx = FLOAT_ARG() - camera_x;
-			float cy = FLOAT_ARG() - camera_y;
+			float cx_ = FLOAT_ARG() - camera_x;
+			float cy_ = FLOAT_ARG() - camera_y;
 			float r = FLOAT_ARG();
 			int col = INT_ARG();
+
+			int cx = floorf(cx_), cy = floorf(cy_);
 
 			int realcolor = getcolor(col);
 
