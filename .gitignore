@@ -7,3 +7,5 @@ build/
 *.3dsx
 *.elf
 *.smdh
+win-build/
+ccleste-win.zip
