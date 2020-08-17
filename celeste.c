@@ -11,6 +11,7 @@
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
+#include <assert.h>
 #include <stdio.h>
 
 #include "celeste.h"
@@ -108,7 +109,7 @@ static inline void P8map(int mx, int my, int tx, int ty, int mw, int mh, int mas
 	Celeste_P8_call(CELESTE_P8_MAP, mx, my, tx, ty, mw, mh, mask);
 }
 
-#define MAX_OBJECTS 24
+#define MAX_OBJECTS 30
 #define FRUIT_COUNT 30
 
 // ~celeste~
@@ -288,6 +289,7 @@ typedef struct {
 //OBJECT strucutre
 typedef struct {
 	bool active;
+	short id; //unique identifier for each object, incremented per object
 
 	//inherited
 	int type;
@@ -351,12 +353,12 @@ typedef struct {
 
 //OBJ function declarations fuckery
 #define when_Y(x) static void x(OBJ* this);
-#define when_N(x) static void* x = NULL;
+#define when_N(x) enum { x = 0 }; //OBJTYPE_prop definition requires a constant value, and `static cost void* x = NULL` doesn't count
 #define CAT(a,b) a##b
 #define X(name,t,has_init,has_update,has_draw) \
-	CAT(when_,has_init)(name##_init)\
-	CAT(when_,has_update)(name##_update)\
-	CAT(when_,has_draw)(name##_draw)
+	when_##has_init (name##_init)\
+	when_##has_update (name##_update)\
+	when_##has_draw (name##_draw)
 OBJ_PROP_LIST()
 #undef X
 
@@ -367,25 +369,24 @@ struct objprop {
 	obj_callback_t init;
 	obj_callback_t update;
 	obj_callback_t draw;
+	const char* nam;
 };
 
-static struct objprop OBJTYPE_prop(OBJTYPE t) {
-	switch (t) {
-		#define X(name,t,has_init,has_update,has_draw) \
-			case OBJ_##name:\
-				return (struct objprop) {\
-					.tile = t,\
-					.init = name##_init, \
-					.update = name##_update, \
-					.draw = name##_draw \
-				};
-		OBJ_PROP_LIST()
-		#undef X
-		default:;
-	}
-	struct objprop dummy = {0};
-	return dummy;
-}
+static const struct objprop OBJTYPE_prop[] = {
+	#define X(name,t,has_init,has_update,has_draw) \
+		[OBJ_##name] = { \
+				.tile = t,\
+				.init = (obj_callback_t)name##_init, \
+				.update = (obj_callback_t)name##_update, \
+				.draw = (obj_callback_t)name##_draw, \
+				.nam = #name \
+		},
+	OBJ_PROP_LIST()
+	#undef X
+	{0}
+};
+
+#define OBJ_PROP(o) OBJTYPE_prop[(o)->type]
 
 static OBJ objects[MAX_OBJECTS] = {{.active = false}};
 
@@ -510,26 +511,34 @@ static void PLAYER_init(OBJ* this) {
 	this->was_on_ground=false;
 	create_hair(this);
 }
+	
+static OBJ player_dummy_copy; //see below
 static void PLAYER_update(OBJ* this) {
 	if (pause_player) return;
    
 	int input = P8btn(k_right) ? 1 : (P8btn(k_left) ? -1 : 0);
 
-	/*LEMON: instead of calling kill_player() below, we call it at the end of this function.. */
-	/*       this is because if we spawn smoke particles after doing kill_player they might spawn */
-	/*       in the slot where the player was... and at the end of this function there is code that changes */
-	/*       the spr property, to do player animation, but this would change the sprite of this smoke particle */
+	/*LEMON: in order to kill the player in these lines, while maintaining object slots in the same order as they would be in pico-8,
+	 *       we need to remove the object there but that shifts back the objects array which will make it so the rest of the player_update()
+	 *       function modifies data from a newly loaded object; which is bad, so we simulate the pico-8 behaviour of reading from and writing to
+	 *       a table that is not referenced in the objects table by switching to a dummy copy of the player object */ 
 
-	int do_kill_player = 0;
+	bool do_kill_player = false;
    
 	// spikes collide
 	if (spikes_at(this->x+this->hitbox.x,this->y+this->hitbox.y,this->hitbox.w,this->hitbox.h,this->spd.x,this->spd.y)) {
-		do_kill_player = 1;
+		do_kill_player = true;
 	}
 	 
 	// bottom death
 	if (this->y>128) {
-		do_kill_player = 1;
+		do_kill_player = true;
+	}
+	if (do_kill_player) {
+		kill_player(this);
+		//switch to dummy copy
+		player_dummy_copy = *this;
+		this = &player_dummy_copy;
 	}
 
 	bool on_ground=OBJ_is_solid(this, 0,1);
@@ -712,8 +721,6 @@ static void PLAYER_update(OBJ* this) {
    
 	// was on the ground
 	this->was_on_ground=on_ground;
-   
-	if (do_kill_player) kill_player(this);
 }
 static void PLAYER_draw(OBJ* this) {
 	// clamp in screen
@@ -804,9 +811,9 @@ static void PLAYER_SPAWN_update(OBJ* this) {
 		this->delay-=1;
 		this->spr=6;
 		if (this->delay<0) {
-			//destroy_object(this);
-			init_object(OBJ_PLAYER,this->x,this->y);
-			destroy_object(this); //LEMON: reordererd cus otherewise player object would not be drwn for the first frame (update wasnt being called since it overwrote this PLAYER_SPAWN slot)
+			float x = this->x, y = this->y;
+			destroy_object(this);
+			init_object(OBJ_PLAYER,x,y);
 		}
 	}
 }
@@ -990,6 +997,7 @@ static void FRUIT_update(OBJ* this) {
 		got_fruit[level_index()] = true;
 		init_object(OBJ_LIFEUP,this->x,this->y);
 		destroy_object(this);
+		return; //LEMON: added return to not modify dead object
 	}
 	this->off+=1;
 	this->y=this->start+P8sin(this->off/40)*2.5;
@@ -1006,7 +1014,7 @@ static void FLY_FRUIT_init(OBJ* this) {
 	this->sfx_delay=8;
 }
 static void FLY_FRUIT_update(OBJ* this) {
-	int do_destroy_object = 0; //LEMON: see PLAYER_update..
+	bool do_destroy_object = false; //LEMON: see PLAYER_update..
 	//fly away
 	if (this->fly) {
 		if (this->sfx_delay>0) {
@@ -1018,7 +1026,7 @@ static void FLY_FRUIT_update(OBJ* this) {
 		}
 		this->spd.y=appr(this->spd.y,-3.5,0.25);
 		if (this->y<-16) {
-			do_destroy_object = 1;
+			do_destroy_object = true;
 		}
 	// wait
 	} else {
@@ -1036,7 +1044,7 @@ static void FLY_FRUIT_update(OBJ* this) {
 		P8sfx(13);
 		got_fruit[level_index()] = true;
 		init_object(OBJ_LIFEUP,this->x,this->y);
-		do_destroy_object = 1;
+		do_destroy_object = true;
 	}
 	if (do_destroy_object) destroy_object(this);
 }
@@ -1094,7 +1102,8 @@ static void FAKE_WALL_update(OBJ* this) {
 		init_object(OBJ_SMOKE,this->x,this->y+8);
 		init_object(OBJ_SMOKE,this->x+8,this->y+8);
 		init_object(OBJ_FRUIT,this->x+4,this->y+4);
-		destroy_object(this); //LEMON: moved here. see PLAYER_update
+		destroy_object(this); //LEMON: moved here. see PLAYER_update. also returning to avoid modifying removed object
+		return;
 	}
 	this->hitbox=(HITBOX){.x=0,.y=0,.w=16,.h=16};
 }
@@ -1263,12 +1272,13 @@ static void ORB_init(OBJ* this) {
 static void ORB_draw(OBJ* this) {
 	this->spd.y=appr(this->spd.y,0,0.5);
 	OBJ* hit=OBJ_collide(this, OBJ_PLAYER,0,0);
+	bool destroy_self = false;
 	if (this->spd.y==0 && hit!=NULL) {
 		music_timer=45;
 		P8sfx(51);
 		freeze=10;
 		shake=10;
-		destroy_object(this);
+		destroy_self = true; //LEMON: to avoid reading off dead object
 		max_djump=2;
 		hit->djump=2;
 	}
@@ -1278,6 +1288,7 @@ static void ORB_draw(OBJ* this) {
 	for (int i=0; i <= 7; i++) {
 		P8circfill(this->x+4+P8cos(off+i/8.0)*8,this->y+4+P8sin(off+i/8.0)*8,1,7);
 	}
+	if (destroy_self) destroy_object(this);
 }
 
 //flag
@@ -1363,16 +1374,18 @@ static OBJ* init_object(OBJTYPE type, float x, float y) {
 	}
 	if (!obj) {
 		//no more free space for objects, give up
-		// printf("exhausted object memory..\n");
+		printf("exhausted object memory..\n");
 		return NULL;
 	}
 	obj->active = true;
+	static short next_id = 0;
+	obj->id = next_id++;
 
 	obj->type = type;
 	obj->collideable=true;
 	obj->solids=true;
 
-	obj->spr = OBJTYPE_prop(type).tile;
+	obj->spr = OBJTYPE_prop[type].tile;
 	obj->flip_x = obj->flip_y = false;
 
 	obj->x = x;
@@ -1383,14 +1396,19 @@ static OBJ* init_object(OBJTYPE type, float x, float y) {
 	obj->rem = (VEC){.x=0,.y=0};
 
 	//add(objects,obj)
-	if (OBJTYPE_prop(obj->type).init!=NULL) {
-		OBJTYPE_prop(obj->type).init(obj);
+	if (OBJ_PROP(obj).init!=NULL) {
+		OBJ_PROP(obj).init(obj);
 	}
 	return obj;
 }
 
 static void destroy_object(OBJ* obj) {
-	obj->active = false;
+	//shift all slots to the right of this object to the left, necessary to simulate loading jank
+	assert(obj >= objects && obj < objects + MAX_OBJECTS);
+	for (; obj+1 < objects + MAX_OBJECTS; obj++) {
+		*obj = *(obj+1);
+	}
+	objects[MAX_OBJECTS-1].active = false;
 }
 
 static void kill_player(OBJ* obj) {
@@ -1398,7 +1416,7 @@ static void kill_player(OBJ* obj) {
 	P8sfx(0);
 	deaths+=1;
 	shake=10;
-	destroy_object(obj);
+	//destroy_object(obj);
 	dead_particles_count = 0;
 	for (float dir=0; dir <= 7; dir++) {
 		float angle=(dir/8);
@@ -1414,6 +1432,7 @@ static void kill_player(OBJ* obj) {
 		};
 		restart_room();
 	}
+	destroy_object(obj); //LEMON: moved here to avoid using ->x and ->y from dead object
 }
 
 // room functions //
@@ -1442,14 +1461,19 @@ static void next_room() {
 	}
 }
 
+static bool room_just_loaded = false; //for debugging loading jank
 static void load_room(int x, int y) {
 	has_dashed=false;
 	has_key=false;
+	room_just_loaded = true;
 
+	//int oldcount = 0;
 	//remove existing objects
 	for (int i = 0; i < MAX_OBJECTS; i++) {
+		//oldcount += objects[i].active ? 1 : 0;
 		objects[i].active = false;
 	}
+	//int newcount = 0;
 
 	//current room
 	room.x = x;
@@ -1461,17 +1485,22 @@ static void load_room(int x, int y) {
 			int tile = P8mget(room.x*16+tx,room.y*16+ty);
 			if (tile==11) {
 				init_object(OBJ_PLATFORM,tx*8,ty*8)->dir=-1;
+				//newcount++;
 			} else if (tile==12) {
 				init_object(OBJ_PLATFORM,tx*8,ty*8)->dir=1;
+				//newcount++;
 			} else {
 				for (int type = 0; type < OBJTYPE_COUNT; type++) {
-					if (tile == OBJTYPE_prop(type).tile) {
+					if (tile == OBJTYPE_prop[type].tile) {
 						init_object(type, tx*8, ty*8);
+						//newcount++;
 					}
 				}
 			}
 		}
 	}
+
+	//printf("load_room(): deleted %i and loaded %i objects\n", oldcount, newcount);
    
 	if (!is_title()) {
 		init_object(OBJ_ROOM_TITLE,0,0);
@@ -1479,7 +1508,7 @@ static void load_room(int x, int y) {
 }
 
 // update function //
-//////////////////////-
+/////////////////////
 
 void Celeste_P8_update() {
 	frames=((frames+1)%30);
@@ -1522,16 +1551,34 @@ void Celeste_P8_update() {
 		}
 	}
 
+	//printf("BEGIN FRAME\n");
+	room_just_loaded = false;
 	// update each object
 	for (int i = 0; i < MAX_OBJECTS; i++) {
 		OBJ* obj = &objects[i];
+
+		redo_update_slot:
 		if (!obj->active) continue;
 
 		OBJ_move(obj, obj->spd.x,obj->spd.y);
-		if (OBJTYPE_prop(obj->type).update!=NULL) {
-			OBJTYPE_prop(obj->type).update(obj);
+		//printf("update #%i (%s)\n", i, OBJ_PROP(obj).nam);
+		short this_id = obj->id;
+		if (OBJ_PROP(obj).update!=NULL) {
+			OBJ_PROP(obj).update(obj);
 		}
+		
+		if (room_just_loaded) /*printf("update(): load room (player was: #%i)\n", i),*/ room_just_loaded = false;
+		/*LEMON: necessary to correctly simulate loading jank: due to the way pico-8's foreach() works,
+		 *       when element #i is removed and replaced by another different object, the function iterates
+		 *       over this index again. thus for example, the player is in slot N before a new room is loaded,
+		 *       all objects are deleted and new objects are spawned, and the objects now in slots [N, last] are updated
+		 */
+		if (this_id != obj->id) {
+			goto redo_update_slot;
+		}
+
 	}
+	//printf("END FRAME\n\n");
    
 	// start game
 	if (is_title()) {
@@ -1623,9 +1670,14 @@ void Celeste_P8_draw() {
 	// draw objects
 	for (int i = 0; i < MAX_OBJECTS; i++) {
 		OBJ* o = &objects[i];
+		redo_draw:;
+		short this_id = o->id;
 		if (o->active && (o->type!=OBJ_PLATFORM && o->type!=OBJ_BIG_CHEST)) {
 			draw_object(o);
 		}
+		
+		//LEMON: draw_object() could have deleted obj, and something could have been moved in its place, so check for that in order not to skip drawing an object
+		if (this_id != o->id) goto redo_draw;
 	}
    
 	// draw fg terrain
@@ -1689,12 +1741,12 @@ void Celeste_P8_draw() {
 }
 
 static void draw_object(OBJ* obj) {
-	if (OBJTYPE_prop(obj->type).draw !=NULL) {
-		OBJTYPE_prop(obj->type).draw(obj);
+	if (OBJ_PROP(obj).draw !=NULL) {
+		OBJ_PROP(obj).draw(obj);
 	} else if (obj->spr > 0) {
 		P8spr(obj->spr,obj->x,obj->y,1,1,obj->flip_x,obj->flip_y);
 	}
-
+	//if (floorf(obj->spr) != obj->spr) printf("?%g %s\n", obj->spr, OBJ_PROP(obj).nam);
 }
 
 static void draw_time(float x, float y) {
@@ -1793,18 +1845,18 @@ size_t Celeste_P8_get_state_size(void) {
 	};
 	return sz;
 #undef V_SIZE
-};
+}
 
-#include <assert.h>
-
-void Celeste_P8_save_state(void* st) {
-	assert(st != NULL);
+void Celeste_P8_save_state(void* st_) {
+	assert(st_ != NULL);
+	char* st = st_;
 #define V_SAVE(v) memcpy(st, &v, sizeof v), st += sizeof v;
 	LISTGVARS(V_SAVE)
 #undef V_SAVE
 }
-void Celeste_P8_load_state(void* st) {
-	assert(st != NULL);
+void Celeste_P8_load_state(const void* st_) {
+	assert(st_ != NULL);
+	const char* st = st_;
 #define V_LOAD(v) memcpy(&v, st, sizeof v), st += sizeof v;
 	LISTGVARS(V_LOAD)
 #undef V_LOAD

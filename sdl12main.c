@@ -410,6 +410,7 @@ int main(int argc, char** argv) {
 	Mix_CloseAudio();
 	Mix_Quit();
 	SDL_Quit();
+	return 0;
 }
 
 static int gettileflag(int, int);
