@@ -12,7 +12,7 @@ C () {
 }
 C mkdir -p win-build
 C cd win-build
-C zig cc -target i386-windows-gnu -I $WSYSROOT/include/ -I $WSYSROOT/include/SDL/ \
+C zig cc -O2 -target i386-windows-gnu -I $WSYSROOT/include/ -I $WSYSROOT/include/SDL/ \
   -L $WSYSROOT/lib/ -lSDLmain -lSDL -lSDL_mixer ../sdl12main.c ../celeste.c -occleste.exe
 C rm -r zig-cache
 C cp $WSYSROOT/bin/libgcc_s_*.dll .
