@@ -37,7 +37,7 @@ static bool solid_at(int x,int y,int w,int h);
 static bool ice_at(int x,int y,int w,int h);
 static bool tile_flag_at(int x,int y,int w,int h,int flag);
 static int tile_at(int x,int y);
-static bool spikes_at(int x,int y,int w,int h,float xspd,float yspd);
+static bool spikes_at(float x,float y,int w,int h,float xspd,float yspd);
 
 
 //exported /imported functions
@@ -48,6 +48,12 @@ void Celeste_P8_set_call_func(callback_func_t func) {
 	Celeste_P8_call = func;
 }
 
+///////
+
+// https://github.com/lemon-sherbet/ccleste/issues/1
+static float P8modulo(float a, float b) {
+	return fmod(fmod(a, b) + b, b);
+}
 #define P8max fmax
 #define P8abs fabsf
 #define P8min fmin
@@ -101,7 +107,6 @@ static inline void P8camera(int x, int y) {
 static inline void P8map(int mx, int my, int tx, int ty, int mw, int mh, int mask) {
 	Celeste_P8_call(CELESTE_P8_MAP, mx, my, tx, ty, mw, mh, mask);
 }
-
 
 #define MAX_OBJECTS 24
 #define FRUIT_COUNT 30
@@ -1041,7 +1046,7 @@ static void FLY_FRUIT_draw(OBJ* this) {
 			off=1+P8max(0,sign(this->y-this->start));
 		}
 	} else {
-		off=fmod(off+0.25, 3);
+		off=P8modulo(off+0.25, 3);
 	}
 	P8spr(45+off,this->x-6,this->y-2,	1,1,true,false);
 	P8spr(this->spr,this->x,this->y,	1,1,false,false);
@@ -1646,7 +1651,7 @@ void Celeste_P8_draw() {
 			p->y += p->spd2.y;
 			p->t -=1;
 			if (p->t <= 0) { p->active = false; }
-			P8rectfill(p->x-p->t/5,p->y-p->t/5,p->x+p->t/5,p->y+p->t/5,14+fmod(p->t,2));
+			P8rectfill(p->x-p->t/5,p->y-p->t/5,p->x+p->t/5,p->y+p->t/5,14+P8modulo(p->t,2));
 		}
 
 		p++;
@@ -1746,17 +1751,17 @@ static int tile_at(int x,int y) {
 	return P8mget(room.x * 16 + x, room.y * 16 + y);
 }
 
-static bool spikes_at(int x,int y,int w,int h,float xspd,float yspd) {
+static bool spikes_at(float x,float y,int w,int h,float xspd,float yspd) {
 	for (int i=P8max(0,P8flr(x/8)); i <= P8min(15,(x+w-1)/8); i++) {
 		for (int j=P8max(0,P8flr(y/8)); j <= P8min(15,(y+h-1)/8); j++) {
 			int tile=tile_at(i,j);
-			if (tile==17 && ((y+h-1)%8>=6 || y+h==j*8+8) && yspd>=0) {
+			if (tile==17 && (P8modulo(y+h-1, 8)>=6 || y+h==j*8+8) && yspd>=0) {
 				return true;
-			} else if (tile==27 && y%8<=2 && yspd<=0) {
+			} else if (tile==27 && P8modulo(y, 8)<=2 && yspd<=0) {
 				return true;
-			} else if (tile==43 && x%8<=2 && xspd<=0) {
+			} else if (tile==43 && P8modulo(x, 8)<=2 && xspd<=0) {
 				return true;
-			} else if (tile==59 && ((x+w-1)%8>=6 || x+w==i*8+8) && xspd>=0) {
+			} else if (tile==59 && (P8modulo(x+w-1, 8)>=6 || x+w==i*8+8) && xspd>=0) {
 				return true;
 			}
 		}
