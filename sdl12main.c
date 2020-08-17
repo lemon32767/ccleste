@@ -197,7 +197,7 @@ int buttons_state = 0;
 	}                                                     \
 } while(0)
 
-static void p8_print(char* str, float x, float y, int col);
+static void p8_print(const char* str, int x, int y, int col);
 	
 static Mix_Music* current_music = NULL;
 
@@ -502,7 +502,7 @@ static inline void Xblit(SDL_Surface* src, SDL_Rect* srcrect, SDL_Surface* dst, 
 	}
 }
 
-static void p8_print(char* str, float x, float y, int col) {
+static void p8_print(const char* str, int x, int y, int col) {
 	for (char c = *str; c; c = *(++str)) {
 		c &= 0x7F;
 		SDL_Rect srcrc = {8*(c%16), 8*(c/16)};
@@ -555,8 +555,8 @@ Celeste_P8_val pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 		)
 		CASE(CELESTE_P8_SPR, //spr(sprite,x,y,cols,rows,flipx,flipy)
 			int sprite = INT_ARG();
-			float x = FLOAT_ARG();
-			float y = FLOAT_ARG();
+			int x = INT_ARG();
+			int y = INT_ARG();
 			int cols = INT_ARG();
 			int rows = INT_ARG();
 			int flipx = BOOL_ARG();
@@ -600,12 +600,10 @@ Celeste_P8_val pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 			ResetPalette();
 		)
 		CASE(CELESTE_P8_CIRCFILL, //circfill(x,y,r,col)
-			float cx_ = FLOAT_ARG() - camera_x;
-			float cy_ = FLOAT_ARG() - camera_y;
+			int cx = INT_ARG() - camera_x;
+			int cy = INT_ARG() - camera_y;
 			float r = FLOAT_ARG();
 			int col = INT_ARG();
-
-			int cx = floorf(cx_), cy = floorf(cy_);
 
 			int realcolor = getcolor(col);
 
@@ -650,9 +648,9 @@ Celeste_P8_val pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 			}
 		)
 		CASE(CELESTE_P8_PRINT, //print(str,x,y,col)
-			char* str = va_arg(args, char*);
-			float x = FLOAT_ARG() - camera_x;
-			float y = FLOAT_ARG() - camera_y;
+			const char* str = va_arg(args, const char*);
+			int x = INT_ARG() - camera_x;
+			int y = INT_ARG() - camera_y;
 			int col = INT_ARG() % 16;
 
 #ifdef _3DS
@@ -665,10 +663,10 @@ Celeste_P8_val pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 			p8_print(str,x,y,col);
 		)
 		CASE(CELESTE_P8_RECTFILL, //rectfill(x0,y0,x1,y1,col)
-			float x0 = FLOAT_ARG() - camera_x;
-			float y0 = FLOAT_ARG() - camera_y;
-			float x1 = FLOAT_ARG() - camera_x;
-			float y1 = FLOAT_ARG() - camera_y;
+			int x0 = INT_ARG() - camera_x;
+			int y0 = INT_ARG() - camera_y;
+			int x1 = INT_ARG() - camera_x;
+			int y1 = INT_ARG() - camera_y;
 			int col = INT_ARG();
 
 			int w = (x1-x0+1)*scale;
@@ -679,10 +677,10 @@ Celeste_P8_val pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 			}
 		)
 		CASE(CELESTE_P8_LINE, //line(x0,y0,x1,y1,col)
-			float x0 = FLOAT_ARG() - camera_x;
-			float y0 = FLOAT_ARG() - camera_y;
-			float x1 = FLOAT_ARG() - camera_x;
-			float y1 = FLOAT_ARG() - camera_y;
+			int x0 = INT_ARG() - camera_x;
+			int y0 = INT_ARG() - camera_y;
+			int x1 = INT_ARG() - camera_x;
+			int y1 = INT_ARG() - camera_y;
 			int col = INT_ARG();
 
 			Xline(x0,y0,x1,y1,col);

@@ -68,7 +68,7 @@ static inline float P8rnd(float max) {
 static inline void P8music(int track, int fade, int mask) {
 	Celeste_P8_call(CELESTE_P8_MUSIC, track, fade, mask);
 }
-static inline void P8spr(int sprite, float x, float y, int cols, int rows, bool flipx, bool flipy) {
+static inline void P8spr(int sprite, int x, int y, int cols, int rows, bool flipx, bool flipy) {
 	Celeste_P8_call(CELESTE_P8_SPR, sprite, x, y, cols, rows, flipx, flipy);
 }
 static inline bool P8btn(int b) {
@@ -83,16 +83,16 @@ static inline void P8pal(int a, int b) {
 static inline void P8pal_reset() {
 	Celeste_P8_call(CELESTE_P8_PAL_RESET);
 }
-static inline void P8circfill(float x, float y, float r, int c) {
+static inline void P8circfill(int x, int y, float r, int c) {
 	Celeste_P8_call(CELESTE_P8_CIRCFILL, x,y,r,c);
 }
-static inline void P8rectfill(float x, float y, float x2, float y2, int c) {
+static inline void P8rectfill(int x, int y, int x2, int y2, int c) {
 	Celeste_P8_call(CELESTE_P8_RECTFILL, x,y,x2,y2,c);
 }
-static inline void P8print(char* str, float x, float y, int c) {
+static inline void P8print(const char* str, int x, int y, int c) {
 	Celeste_P8_call(CELESTE_P8_PRINT, str,x,y,c);
 }
-static inline void P8line(float x, float y, float x2, float y2, int c) {
+static inline void P8line(int x, int y, int x2, int y2, int c) {
 	Celeste_P8_call(CELESTE_P8_LINE, x,y,x2,y2,c);
 }
 static inline int P8mget(int x, int y) {
