@@ -53,16 +53,16 @@ void Celeste_P8_set_call_func(callback_func_t func) {
 
 // https://github.com/lemon-sherbet/ccleste/issues/1
 static float P8modulo(float a, float b) {
-	return fmod(fmod(a, b) + b, b);
+	return fmodf(fmodf(a, b) + b, b);
 }
-#define P8max fmax
+#define P8max fmaxf
 #define P8abs fabsf
-#define P8min fmin
-#define P8flr floor
+#define P8min fminf
+#define P8flr floorf
 static inline float P8sin(float x) {
-	return -sinf(x*6.2831853071796); //https://pico-8.fandom.com/wiki/Math
+	return -sinf(x*6.2831853071796f); //https://pico-8.fandom.com/wiki/Math
 }
-#define P8cos(x) (-P8sin((x)+0.25)) //cos(x) = sin(x+pi/2)
+#define P8cos(x) (-P8sin((x)+0.25f)) //cos(x) = sin(x+pi/2)
 static inline float P8rnd(float max) {
 	return Celeste_P8_call(CELESTE_P8_RND, max).f;
 }
@@ -236,7 +236,7 @@ static bool is_title() {
 
 typedef struct {
 	bool isLast;
-	int x,y,spd,w;
+	float x,y,spd,w;
 } CLOUD;
 static CLOUD clouds[17];
 //top level init code has been moved into a function
@@ -687,10 +687,10 @@ static void PLAYER_update(OBJ* this) {
 			}
 			
 			if (this->spd.y!=0) {
-				this->dash_accel.x*=0.70710678118;
+				this->dash_accel.x*=0.70710678118f;
 			}
 			if (this->spd.x!=0) {
-				this->dash_accel.y*=0.70710678118;		
+				this->dash_accel.y*=0.70710678118f;
 			} else if (dash && this->djump<=0) {
 				psfx(9);
 				init_object(OBJ_SMOKE,this->x,this->y);
