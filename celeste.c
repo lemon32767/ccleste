@@ -535,9 +535,9 @@ static void PLAYER_update(OBJ* this) {
 		do_kill_player = true;
 	}
 	if (do_kill_player) {
-		kill_player(this);
-		//switch to dummy copy
+		//switch to dummy copy, need to copy before destroying the object 
 		player_dummy_copy = *this;
+		kill_player(this);
 		this = &player_dummy_copy;
 	}
 
