@@ -136,7 +136,8 @@ static int music_timer = 0;
 
 //these are originally implicit globals defined in title_screen()
 static bool new_bg = false;
-static int frames, seconds, minutes;
+static int frames, seconds;
+static short minutes; //this variable can overflow in normal gameplay (after +500 hours)
 static int deaths, max_djump;
 static bool start_game;
 static int start_game_flash;
@@ -300,7 +301,8 @@ typedef struct {
 
 	//player
 	bool p_jump, p_dash;
-	int grace, jbuffer, djump, dash_time, dash_effect_time;
+	int grace, jbuffer, djump, dash_time;
+	short dash_effect_time; //can underflow in normal gameplay (after 18 minutes)
 	VEC dash_target;
 	VEC dash_accel;
 	float spr_off;
