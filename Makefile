@@ -26,5 +26,5 @@ $(CELESTE_OBJ): celeste.c celeste.h
 	$(CELESTE_CC) $(CFLAGS) -c -o $(CELESTE_OBJ) celeste.c
 
 clean:
-	$(RM) ccleste ccleste-fixedp celeste.o
+	$(RM) ccleste ccleste-fixedp celeste.o celeste-fixedp.o
 	make -f Makefile.3ds clean
