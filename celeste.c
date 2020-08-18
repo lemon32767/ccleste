@@ -16,6 +16,10 @@
 
 #include "celeste.h"
 
+#ifdef __cplusplus
+#define this xthis //this is a keyword in C++
+#endif
+
 //i cant be bothered to put all function declarations in an appropiate place so ill just toss them all here:
 static void PRELUDE(void);
 static void PRELUDE_initclouds(void);
@@ -42,10 +46,10 @@ static bool spikes_at(float x,float y,int w,int h,float xspd,float yspd);
 
 
 //exported /imported functions
-static callback_func_t Celeste_P8_call = NULL;
+static Celeste_P8_cb_func_t Celeste_P8_call = NULL;
 
 //exported
-void Celeste_P8_set_call_func(callback_func_t func) {
+void Celeste_P8_set_call_func(Celeste_P8_cb_func_t func) {
 	Celeste_P8_call = func;
 }
 
@@ -235,20 +239,19 @@ static bool is_title() {
 /////////////
 
 typedef struct {
-	bool isLast;
 	float x,y,spd,w;
+	bool isLast;
 } CLOUD;
 static CLOUD clouds[17];
 //top level init code has been moved into a function
 static void PRELUDE_initclouds() {
 	for (int i=0; i<=16; i++) {
 		clouds[i] = (CLOUD){
-			.isLast = i == 16,
-
 			.x=P8rnd(128),
 			.y=P8rnd(128),
 			.spd=1+P8rnd(4),
-			.w=32+P8rnd(32)
+			.w=32+P8rnd(32),
+			.isLast = i == 16
 		};
 	}
 }
@@ -271,7 +274,7 @@ static void PRELUDE_initparticles() {
 			.x=P8rnd(128),
 			.y=P8rnd(128),
 			.s=0+P8flr(P8rnd(5)/4),
-			.spd=0.25+P8rnd(5),
+			.spd=0.25f+P8rnd(5),
 			.off=P8rnd(1),
 			.c=6+P8flr(0.5+P8rnd(1))
 		};
@@ -282,8 +285,8 @@ static void PRELUDE_initparticles() {
 typedef struct {int x,y,w,h;} HITBOX;
 
 typedef struct {
-	bool isLast;
 	float x,y,size;
+	bool isLast;
 } HAIR;
 
 //OBJECT strucutre
@@ -292,7 +295,7 @@ typedef struct {
 	short id; //unique identifier for each object, incremented per object
 
 	//inherited
-	int type;
+	OBJTYPE type;
 	bool collideable, solids;
 	float spr;
 	bool flip_x, flip_y;
@@ -338,7 +341,7 @@ typedef struct {
 	float last, dir;
 
 	//message
-	char* text;
+	const char* text;
 	float index;
 	VECI off2; //changed from off..
 
@@ -354,7 +357,6 @@ typedef struct {
 //OBJ function declarations fuckery
 #define when_Y(x) static void x(OBJ* this);
 #define when_N(x) enum { x = 0 }; //OBJTYPE_prop definition requires a constant value, and `static cost void* x = NULL` doesn't count
-#define CAT(a,b) a##b
 #define X(name,t,has_init,has_update,has_draw) \
 	when_##has_init (name##_init)\
 	when_##has_update (name##_update)\
@@ -1241,8 +1243,8 @@ static void BIG_CHEST_draw(OBJ* this) {
 			this->particles[this->particle_count++] = (PARTICLE){
 				.x=1+P8rnd(14),
 				.y=0,
-				.h=32+P8rnd(32),
-				.spd=8+P8rnd(8)
+				.spd=8+P8rnd(8),
+				.h=32+P8rnd(32)
 			};
 		}
 		if (this->timer<0) {
@@ -1490,9 +1492,9 @@ static void load_room(int x, int y) {
 				init_object(OBJ_PLATFORM,tx*8,ty*8)->dir=1;
 				//newcount++;
 			} else {
-				for (int type = 0; type < OBJTYPE_COUNT; type++) {
+				for (int type = 0; type < OBJTYPE_COUNT; type++) { //safe since types are ordered starting at 0
 					if (tile == OBJTYPE_prop[type].tile) {
-						init_object(type, tx*8, ty*8);
+						init_object((OBJTYPE)type, tx*8, ty*8);
 						//newcount++;
 					}
 				}
@@ -1849,14 +1851,14 @@ size_t Celeste_P8_get_state_size(void) {
 
 void Celeste_P8_save_state(void* st_) {
 	assert(st_ != NULL);
-	char* st = st_;
+	char* st = (char*)st_;
 #define V_SAVE(v) memcpy(st, &v, sizeof v), st += sizeof v;
 	LISTGVARS(V_SAVE)
 #undef V_SAVE
 }
 void Celeste_P8_load_state(const void* st_) {
 	assert(st_ != NULL);
-	const char* st = st_;
+	const char* st = (const char*)st_;
 #define V_LOAD(v) memcpy(&v, st, sizeof v), st += sizeof v;
 	LISTGVARS(V_LOAD)
 #undef V_LOAD
