@@ -1,5 +1,6 @@
 *.d
-celeste-sdl12
+ccleste
+ccleste-fixedp
 a.out
 *.o
 data-old/

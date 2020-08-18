@@ -228,7 +228,7 @@ static _Bool enable_screenshake = 1;
 
 int main(int argc, char** argv) {
 	SDL_CHECK(SDL_Init(SDL_INIT_AUDIO | SDL_INIT_VIDEO) == 0);
-	const int videoflag = SDL_SWSURFACE | SDL_HWPALETTE;
+	int videoflag = SDL_SWSURFACE | SDL_HWPALETTE;
 #ifdef _3DS
 	fsInit();
 	romfsInit();
@@ -256,7 +256,7 @@ int main(int argc, char** argv) {
 	ResetPalette();
 	SDL_ShowCursor(0);
 
-	printf("game state size %gkb\n", (long unsigned)Celeste_P8_get_state_size()/1024.);
+	printf("game state size %gkb\n", Celeste_P8_get_state_size()/1024.);
 
 	printf("now loading...\n");
 
@@ -294,12 +294,14 @@ int main(int argc, char** argv) {
 
 	LoadData();
 
-	Celeste_P8_val pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...);
+	int pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...);
 	Celeste_P8_set_call_func(pico8emu);
 
 	//for reset
 	void* initial_game_state = SDL_malloc(Celeste_P8_get_state_size());
 	if (initial_game_state) Celeste_P8_save_state(initial_game_state);
+
+	Celeste_P8_set_rndseed((unsigned)(time(NULL) + SDL_GetTicks()));
 
 	Celeste_P8_init();
 
@@ -572,30 +574,23 @@ static void p8_print(const char* str, int x, int y, int col) {
 	}
 }
 
-Celeste_P8_val pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
+int pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 	static int camera_x = 0, camera_y = 0;
 	if (!enable_screenshake) {
 		camera_x = camera_y = 0;
 	}
 
 	va_list args;
-	Celeste_P8_val ret = {.i = 0};
+	int ret = 0;
 	va_start(args, call);
 	
 	#define   INT_ARG() va_arg(args, int)
 	#define  BOOL_ARG() (Celeste_P8_bool_t)va_arg(args, int)
-	#define FLOAT_ARG() (float)va_arg(args, double)
-	#define RET_INT(_i)   do {ret.i = (_i); goto end;} while (0)
-	#define RET_FLOAT(_f) do {ret.f = (_f); goto end;} while (0)
+	#define RET_INT(_i)   do {ret = (_i); goto end;} while (0)
 	#define RET_BOOL(_b) RET_INT(!!(_b))
 	#define CASE(t, ...) case t: {__VA_ARGS__;} break;
 
 	switch (call) {
-		CASE(CELESTE_P8_RND, //rnd(max)
-			float max = FLOAT_ARG();
-			float v = max * ((float)rand() / (float)RAND_MAX);
-			RET_FLOAT(v);
-		)
 		CASE(CELESTE_P8_MUSIC, //music(idx,fade,mask)
 			int index = INT_ARG();
 			int fade = INT_ARG();
@@ -661,7 +656,7 @@ Celeste_P8_val pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 		CASE(CELESTE_P8_CIRCFILL, //circfill(x,y,r,col)
 			int cx = INT_ARG() - camera_x;
 			int cy = INT_ARG() - camera_y;
-			float r = FLOAT_ARG();
+			int r = INT_ARG();
 			int col = INT_ARG();
 
 			int realcolor = getcolor(col);

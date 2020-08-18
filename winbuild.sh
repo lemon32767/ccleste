@@ -12,9 +12,13 @@ C () {
 }
 C mkdir -p win-build
 C cd win-build
-C zig cc -O2 -target i386-windows-gnu -I $WSYSROOT/include/ -I $WSYSROOT/include/SDL/ \
-  -L $WSYSROOT/lib/ -lSDLmain -lSDL -lSDL_mixer ../sdl12main.c ../celeste.c -occleste.exe
-C rm -r zig-cache
+ZIGFLAGS="-target i386-windows-gnu -I $WSYSROOT/include/ -I $WSYSROOT/include/SDL/ -L $WSYSROOT/lib/ -Wno-ignored-attributes"
+#CC="zig cc $ZIGFLAGS" CXX=zig\ c++ C make OUT=ccleste.exe -C ..
+C zig cc $ZIGFLAGS -c ../celeste.c -o celeste.o
+C zig cc $ZIGFLAGS -lSDLmain -lSDL  -lSDL_mixer celeste.o ../sdl12main.c -o ccleste.exe
+C zig c++ $ZIGFLAGS -DCELESTE_P8_FIXEDP -c -xc++ ../celeste.c -o celeste-fixedp.o
+C zig cc $ZIGFLAGS -lSDLmain -lSDL  -lSDL_mixer celeste-fixedp.o ../sdl12main.c -o ccleste-fixedp.exe
+C rm -r zig-cache *.o stdout.txt
 C cp $WSYSROOT/bin/libgcc_s_*.dll .
 C cp $WSYSROOT/bin/libogg*.dll .
 C cp $WSYSROOT/bin/libwinpthread*.dll .
