@@ -28,19 +28,22 @@ devkitARM
 
 # Controls
 
-|PC                |3DS                |Action      |
-|:----------------:|:-----------------:|-----------:|
-|LEFT              |LEFT               | Move left  |
-|RIGHT             |RIGHT              | Move right |
-|DOWN              |DOWN               | Look down  |
-|UP                |UP                 | Look up    |
-|Z/C               |A                  | Jump       |
-|X/V               |B/X                | Dash       |
-|ESCAPE            |START              | Pause      |
-|F11               |SELECT             | Fullscreen |
-|SHIFT+D           |Y+L                | Load state |
-|SHIFT+S           |Y+R                | Save state |
-|Hold F9           |Hold SELECT+START+Y| Reset      |
+|PC                |3DS                |Action              |
+|:----------------:|:-----------------:|-------------------:|
+|LEFT              |LEFT               | Move left          |
+|RIGHT             |RIGHT              | Move right         |
+|DOWN              |DOWN               | Look down          |
+|UP                |UP                 | Look up            |
+|Z/C               |A                  | Jump               |
+|X/V               |B/X                | Dash               |
+|ESCAPE            |START              | Pause              |
+|E                 |L+R                | Toggle screenshake |
+|SHIFT+D           |Y+L                | Load state         |
+|SHIFT+S           |Y+R                | Save state         |
+|Hold F9           |Hold SELECT+START+Y| Reset              |
+|F11               |SELECT             | Fullscreen\*       |
+
+\* note: toggling fullscreen on PC is currently only supported on linux (X11)
 
 # credits
 

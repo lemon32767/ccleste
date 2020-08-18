@@ -197,13 +197,38 @@ int buttons_state = 0;
 	}                                                     \
 } while(0)
 
+static void p8_rectfill(int x0, int y0, int x1, int y1, int col);
 static void p8_print(const char* str, int x, int y, int col);
+
+//on-screen display (for info, such as loading a state, toggling screenshake, toggling fullscreen, etc)
+static char osd_text[200] = "";
+static int osd_timer = 0;
+static void OSDset(const char* fmt, ...) {
+	va_list ap;
+	va_start(ap, fmt);
+	vsnprintf(osd_text, sizeof osd_text, fmt, ap);
+	osd_text[sizeof osd_text - 1] = '\0'; //make sure to add NUL terminator in case of truncation
+	printf("%s\n", osd_text);
+	osd_timer = 30;
+	va_end(ap);
+}
+static void OSDdraw(void) {
+	if (osd_timer > 0) {
+		--osd_timer;
+		const int x = 4;
+		const int y = 120 + (osd_timer < 10 ? 10-osd_timer : 0); //disappear by going below the screen
+		p8_rectfill(x-2, y-2, x+4*strlen(osd_text), y+6, 6); //outline
+		p8_rectfill(x-1, y-1, x+4*strlen(osd_text)-1, y+5, 0);
+		p8_print(osd_text, x, y, 7);
+	}
+}
 	
 static Mix_Music* current_music = NULL;
+static _Bool enable_screenshake = 1;
 
 int main(int argc, char** argv) {
 	SDL_CHECK(SDL_Init(SDL_INIT_AUDIO | SDL_INIT_VIDEO) == 0);
-	int videoflag = SDL_SWSURFACE | SDL_HWPALETTE;
+	const int videoflag = SDL_SWSURFACE | SDL_HWPALETTE;
 #ifdef _3DS
 	fsInit();
 	romfsInit();
@@ -283,8 +308,8 @@ int main(int argc, char** argv) {
 	void* game_state = NULL;
 	Mix_Music* game_state_music = NULL;
 
-	int running = 1;
-	int paused = 0;
+	_Bool running = 1;
+	_Bool paused = 0;
 	while (running) {
 		Uint8* kbstate = SDL_GetKeyState(NULL);
 		
@@ -301,7 +326,7 @@ int main(int argc, char** argv) {
 			if (reset_input_timer >= 30) {
 				reset_input_timer=0;
 				//reset
-				printf("game reset\n");
+				OSDset("reset");
 				paused = 0;
 				Celeste_P8_load_state(initial_game_state);
 				Mix_HaltChannel(-1);
@@ -321,7 +346,9 @@ int main(int argc, char** argv) {
 					paused = !paused;
 					break;
 				} else if (ev.key.keysym.sym == SDLK_F11 && !(kbstate[SDLK_LSHIFT] || kbstate[SDLK_ESCAPE])) {
-					SDL_WM_ToggleFullScreen(screen);
+					if (SDL_WM_ToggleFullScreen(screen)) { //this doesn't work on windows..
+						OSDset("toggle fullscreen");
+					}
 					break;
 				} else if (0 && ev.key.keysym.sym == SDLK_5) {
 					Celeste_P8__DEBUG();
@@ -329,14 +356,14 @@ int main(int argc, char** argv) {
 				} else if (ev.key.keysym.sym == SDLK_s && kbstate[SDLK_LSHIFT]) { //save state
 					game_state = game_state ? game_state : SDL_malloc(Celeste_P8_get_state_size());
 					if (game_state) {
-						printf("save state\n");
+						OSDset("save state");
 						Celeste_P8_save_state(game_state);
 						game_state_music = current_music;
 					}
 					break;
 				} else if (ev.key.keysym.sym == SDLK_d && kbstate[SDLK_LSHIFT]) { //load state
 					if (game_state) {
-						printf("load state\n");
+						OSDset("load state");
 						if (paused) paused = 0, Mix_Resume(-1), Mix_ResumeMusic();
 						Celeste_P8_load_state(game_state);
 						if (current_music != game_state_music) {
@@ -346,8 +373,17 @@ int main(int argc, char** argv) {
 						}
 					}
 					break;
+				} else if ( //toggle screenshake (e / L+R)
+#ifdef _3DS
+						(ev.key.keysym.sym == SDLK_d && kbstate[SDLK_s]) || (ev.key.keysym.sym == SDLK_s && kbstate[SDLK_d])
+#else
+						ev.key.keysym.sym == SDLK_e
+#endif
+						) {
+					enable_screenshake = !enable_screenshake;
+					OSDset("screenshake: %s", enable_screenshake ? "on" : "off");
 				}
-				//fallthrough
+				//else: fallthrough
 			}
 			case SDL_KEYUP: {
 				int down = ev.type == SDL_KEYDOWN;
@@ -371,13 +407,16 @@ int main(int argc, char** argv) {
 		}
 
 		if (paused) {
-			int x0 = PICO8_W/2-3*4, y0 = 8;
-			SDL_FillRect(screen, &(SDL_Rect){x0*scale,y0*scale, (6*4+1)*scale, 7*scale}, getcolor(7));
-			p8_print("paused", x0+1, y0+1, 1);
+			const int x0 = PICO8_W/2-3*4, y0 = 8;
+
+			p8_rectfill(x0-1,y0-1, 6*4+x0+1,6+y0+1, 6);
+			p8_rectfill(x0,y0, 6*4+x0,6+y0, 0);
+			p8_print("paused", x0+1, y0+1, 7);
 		} else {
 			Celeste_P8_update();
 			Celeste_P8_draw();
 		}
+		OSDdraw();
 
 		/*for (int i = 0 ; i < 16;i++) {
 			SDL_Rect rc = {i*8*scale, 0, 8*scale, 4*scale};
@@ -421,7 +460,7 @@ int main(int argc, char** argv) {
 }
 
 static int gettileflag(int, int);
-static void Xline(int,int,int,int,unsigned char);
+static void p8_line(int,int,int,int,unsigned char);
 
 //lots of code from https://github.com/SDL-mirror/SDL/blob/bc59d0d4a2c814900a506d097a381077b9310509/src/video/SDL_surface.c#L625
 //coordinates should be scaled already
@@ -510,6 +549,15 @@ static inline void Xblit(SDL_Surface* src, SDL_Rect* srcrect, SDL_Surface* dst, 
 	}
 }
 
+static void p8_rectfill(int x0, int y0, int x1, int y1, int col) {
+	int w = (x1 - x0 + 1)*scale;
+	int h = (y1 - y0 + 1)*scale;
+	if (w > 0 && h > 0) {
+		SDL_Rect rc = {x0*scale,y0*scale, w,h};
+		SDL_FillRect(screen, &rc, getcolor(col));
+	}
+}
+
 static void p8_print(const char* str, int x, int y, int col) {
 	for (char c = *str; c; c = *(++str)) {
 		c &= 0x7F;
@@ -526,6 +574,9 @@ static void p8_print(const char* str, int x, int y, int col) {
 
 Celeste_P8_val pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 	static int camera_x = 0, camera_y = 0;
+	if (!enable_screenshake) {
+		camera_x = camera_y = 0;
+	}
 
 	va_list args;
 	Celeste_P8_val ret = {.i = 0};
@@ -634,8 +685,8 @@ Celeste_P8_val pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 
 				//this algorithm doesn't account for the diameters
 				//so we have to set them manually
-				Xline(cx,cy-y, cx,cy+r, col);
-				Xline(cx+r,cy, cx-r,cy, col);
+				p8_line(cx,cy-y, cx,cy+r, col);
+				p8_line(cx+r,cy, cx-r,cy, col);
 
 				while (x < y) {
 					if (f >= 0) {
@@ -648,10 +699,10 @@ Celeste_P8_val pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 					f += ddFx;
 
 					//build our current arc
-					Xline(cx+x,cy+y, cx-x,cy+y, col);
-					Xline(cx+x,cy-y, cx-x,cy-y, col);
-					Xline(cx+y,cy+x, cx-y,cy+x, col);
-					Xline(cx+y,cy-x, cx-y,cy-x, col);
+					p8_line(cx+x,cy+y, cx-x,cy+y, col);
+					p8_line(cx+x,cy-y, cx-x,cy-y, col);
+					p8_line(cx+y,cy+x, cx-y,cy+x, col);
+					p8_line(cx+y,cy-x, cx-y,cy-x, col);
 				}
 			}
 		)
@@ -677,12 +728,7 @@ Celeste_P8_val pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 			int y1 = INT_ARG() - camera_y;
 			int col = INT_ARG();
 
-			int w = (x1-x0+1)*scale;
-			int h = (y1-y0+1)*scale;
-			if (w>0 && h>0) {
-				SDL_Rect rc = {x0*scale,y0*scale, w,h};
-				SDL_FillRect(screen, &rc, getcolor(col));
-			}
+			p8_rectfill(x0,y0,x1,y1,col);
 		)
 		CASE(CELESTE_P8_LINE, //line(x0,y0,x1,y1,col)
 			int x0 = INT_ARG() - camera_x;
@@ -691,7 +737,7 @@ Celeste_P8_val pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 			int y1 = INT_ARG() - camera_y;
 			int col = INT_ARG();
 
-			Xline(x0,y0,x1,y1,col);
+			p8_line(x0,y0,x1,y1,col);
 		)
 		CASE(CELESTE_P8_MGET, //mget(tx,ty)
 			int tx = INT_ARG();
@@ -700,8 +746,10 @@ Celeste_P8_val pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 			RET_INT(tilemap_data[tx+ty*128]);
 		)
 		CASE(CELESTE_P8_CAMERA, //camera(x,y)
-			camera_x = INT_ARG();
-			camera_y = INT_ARG();
+			if (enable_screenshake) {
+				camera_x = INT_ARG();
+				camera_y = INT_ARG();
+			}
 		)
 		CASE(CELESTE_P8_FGET, //fget(tile,flag)
 			int tile = INT_ARG();
@@ -758,7 +806,7 @@ static int gettileflag(int tile, int flag) {
 }
 
 //coordinates should NOT be scaled before calling this
-static void Xline(int x0, int y0, int x1, int y1, unsigned char color) {
+static void p8_line(int x0, int y0, int x1, int y1, unsigned char color) {
 	#define CLAMP(v,min,max) v = v < min ? min : v >= max ? max-1 : v;
 	CLAMP(x0,0,screen->w);
 	CLAMP(y0,0,screen->h);
