@@ -212,7 +212,8 @@ int main(int argc, char** argv) {
 	SDL_N3DSKeyBind(KEY_CPAD_DOWN|KEY_CSTICK_DOWN, SDLK_DOWN);
 	SDL_N3DSKeyBind(KEY_CPAD_LEFT|KEY_CSTICK_LEFT, SDLK_LEFT);
 	SDL_N3DSKeyBind(KEY_CPAD_RIGHT|KEY_CSTICK_RIGHT, SDLK_RIGHT);
-	SDL_N3DSKeyBind(KEY_SELECT, SDLK_f); //to switch full screen
+	SDL_N3DSKeyBind(KEY_SELECT, SDLK_F11); //to switch full screen
+	SDL_N3DSKeyBind(KEY_START, SDLK_ESCAPE); //to pause
 	
 	SDL_N3DSKeyBind(KEY_Y, SDLK_LSHIFT); //hold to reset / load/save state
 	SDL_N3DSKeyBind(KEY_L, SDLK_d); //load state
@@ -288,8 +289,14 @@ int main(int argc, char** argv) {
 		Uint8* kbstate = SDL_GetKeyState(NULL);
 		
 		static int reset_input_timer = 0;
-		//hold shift+return+r (select+start+y) to reset
-		if (initial_game_state != NULL && kbstate[SDLK_LSHIFT] && kbstate[SDLK_RETURN] && (kbstate[SDLK_r] || kbstate[SDLK_f])) {
+		//hold F9 (select+start+y) to reset
+		if (initial_game_state != NULL
+#ifdef _3DS
+				&& kbstate[SDLK_LSHIFT] && kbstate[SDLK_ESCAPE] && kbstate[SDLK_F11]
+#else
+				&& kbstate[SDLK_F9]
+#endif
+		) {
 			reset_input_timer++;
 			if (reset_input_timer >= 30) {
 				reset_input_timer=0;
@@ -306,14 +313,14 @@ int main(int argc, char** argv) {
 		while (SDL_PollEvent(&ev)) switch (ev.type) {
 			case SDL_QUIT: running = 0; break;
 			case SDL_KEYDOWN: {
-				if (ev.key.keysym.sym == SDLK_ESCAPE) {
+				/*if (ev.key.keysym.sym == SDLK_ESCAPE) {
 					running = 0;
 					break;
-				} else if (ev.key.keysym.sym == SDLK_RETURN) { //do pause
+				} else*/ if (ev.key.keysym.sym == SDLK_ESCAPE) { //do pause
 					if (paused) Mix_Resume(-1), Mix_ResumeMusic(); else Mix_Pause(-1), Mix_PauseMusic();
 					paused = !paused;
 					break;
-				} else if (ev.key.keysym.sym == SDLK_f && !(kbstate[SDLK_LSHIFT] || kbstate[SDLK_RETURN])) {
+				} else if (ev.key.keysym.sym == SDLK_F11 && !(kbstate[SDLK_LSHIFT] || kbstate[SDLK_ESCAPE])) {
 					SDL_WM_ToggleFullScreen(screen);
 					break;
 				} else if (0 && ev.key.keysym.sym == SDLK_5) {

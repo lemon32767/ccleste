@@ -36,12 +36,11 @@ devkitARM
 |UP                |UP                 | Look up    |
 |Z/C               |A                  | Jump       |
 |X/V               |B/X                | Dash       |
-|ENTER             |START              | Pause      |
-|F                 |SELECT             | Fullscreen |
-|ESC               |n/a                | Quit       |
+|ESCAPE            |START              | Pause      |
+|F11               |SELECT             | Fullscreen |
 |SHIFT+D           |Y+L                | Load state |
 |SHIFT+S           |Y+R                | Save state |
-|Hold SHIFT+ENTER+R|Hold SELECT+START+Y| Reset      |
+|Hold F9           |Hold SELECT+START+Y| Reset      |
 
 # credits
 
