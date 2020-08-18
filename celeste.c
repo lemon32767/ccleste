@@ -321,25 +321,25 @@ static int k_dash = 5;
 //with this X macro table thing we can define the properties that each object type has, in the original lua code these properties
 //are inferred from the `types` table
 #define OBJ_PROP_LIST() \
-	/* TYPE        TILE   HAS INIT  HAS UPDATE  HAS DRAW  */\
-	X(PLAYER,       -1,     Y,        Y,          Y)\
-	X(PLAYER_SPAWN,  1,     Y,        Y,          Y)\
-	X(SPRING,       18,     Y,        Y,          N)\
-	X(BALLOON,      22,     Y,        Y,          Y)\
-	X(SMOKE,        -1,     Y,        Y,          N)\
-	X(PLATFORM,     -1,     Y,        Y,          Y)\
-	X(FALL_FLOOR,   23,     Y,        Y,          Y)\
-	X(FRUIT,        26,     Y,        Y,          N)\
-	X(FLY_FRUIT,    28,     Y,        Y,          Y)\
-	X(FAKE_WALL,    64,     N,        Y,          Y)\
-	X(KEY,           8,     N,        Y,          N)\
-	X(CHEST,        20,     Y,        Y,          N)\
-	X(LIFEUP,       -1,     Y,        Y,          Y)\
-	X(MESSAGE,      86,     N,        N,          Y)\
-	X(BIG_CHEST,    96,     Y,        N,          Y)\
-	X(ORB,          -1,     Y,        N,          Y)\
-	X(FLAG,        118,     Y,        N,          Y)\
-	X(ROOM_TITLE,   -1,     Y,        N,          Y)
+	/* TYPE        TILE   HAS INIT  HAS UPDATE  HAS DRAW    IF_NOT_FRUIT */\
+	X(PLAYER,       -1,     Y,        Y,          Y,            false)\
+	X(PLAYER_SPAWN,  1,     Y,        Y,          Y,            false)\
+	X(SPRING,       18,     Y,        Y,          N,            false)\
+	X(BALLOON,      22,     Y,        Y,          Y,            false)\
+	X(SMOKE,        -1,     Y,        Y,          N,            false)\
+	X(PLATFORM,     -1,     Y,        Y,          Y,            false)\
+	X(FALL_FLOOR,   23,     Y,        Y,          Y,            false)\
+	X(FRUIT,        26,     Y,        Y,          N,             true)\
+	X(FLY_FRUIT,    28,     Y,        Y,          Y,             true)\
+	X(FAKE_WALL,    64,     N,        Y,          Y,             true)\
+	X(KEY,           8,     N,        Y,          N,             true)\
+	X(CHEST,        20,     Y,        Y,          N,             true)\
+	X(LIFEUP,       -1,     Y,        Y,          Y,            false)\
+	X(MESSAGE,      86,     N,        N,          Y,            false)\
+	X(BIG_CHEST,    96,     Y,        N,          Y,            false)\
+	X(ORB,          -1,     Y,        N,          Y,            false)\
+	X(FLAG,        118,     Y,        N,          Y,            false)\
+	X(ROOM_TITLE,   -1,     Y,        N,          Y,            false)
 
 typedef enum {
 	#define X(t,...) OBJ_##t,
@@ -520,7 +520,7 @@ typedef struct {
 //OBJ function declarations fuckery
 #define when_Y(x) static void x(OBJ* this);
 #define when_N(x) enum { x = 0 }; //OBJTYPE_prop definition requires a constant value, and `static cost void* x = NULL` doesn't count
-#define X(name,t,has_init,has_update,has_draw) \
+#define X(name,t,has_init,has_update,has_draw,if_not_fruit) \
 	when_##has_init (name##_init)\
 	when_##has_update (name##_update)\
 	when_##has_draw (name##_draw)
@@ -535,16 +535,18 @@ struct objprop {
 	obj_callback_t update;
 	obj_callback_t draw;
 	const char* nam;
+	bool if_not_fruit;
 };
 
 static const struct objprop OBJTYPE_prop[] = {
-	#define X(name,t,has_init,has_update,has_draw) \
+	#define X(name,t,has_init,has_update,has_draw,_if_not_fruit) \
 		[OBJ_##name] = { \
 				.tile = t,\
 				.init = (obj_callback_t)name##_init, \
 				.update = (obj_callback_t)name##_update, \
 				.draw = (obj_callback_t)name##_draw, \
-				.nam = #name \
+				.nam = #name, \
+				.if_not_fruit = _if_not_fruit \
 		},
 	OBJ_PROP_LIST()
 	#undef X
@@ -1527,7 +1529,7 @@ static void ROOM_TITLE_draw(OBJ* this) {
 
 static OBJ* init_object(OBJTYPE type, float x, float y) {
 	//if (type.if_not_fruit!=NULL && got_fruit[1+level_index()]) {
-	if ((type == OBJ_FRUIT || type == OBJ_FLY_FRUIT) && got_fruit[1+level_index()]) {
+	if (OBJTYPE_prop[type].if_not_fruit && got_fruit[level_index()]) {
 		return NULL;
 	}
 	OBJ* obj = NULL;
