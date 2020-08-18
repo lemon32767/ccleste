@@ -3,6 +3,7 @@
 #include <math.h>
 #include <stdarg.h>
 #include <assert.h>
+#include <errno.h>
 #include <time.h>
 #ifdef _3DS
 #include <3ds.h>
@@ -256,6 +257,14 @@ int main(int argc, char** argv) {
 	ResetPalette();
 	SDL_ShowCursor(0);
 
+	FILE* TAS = NULL;
+	if (argc > 1) {
+		TAS = fopen(argv[1], "r");
+		if (!TAS) {
+			printf("couldn't open TAS file '%s': %s\n", argv[1], strerror(errno));
+		}
+	}
+
 	printf("game state size %gkb\n", Celeste_P8_get_state_size()/1024.);
 
 	printf("now loading...\n");
@@ -301,7 +310,12 @@ int main(int argc, char** argv) {
 	void* initial_game_state = SDL_malloc(Celeste_P8_get_state_size());
 	if (initial_game_state) Celeste_P8_save_state(initial_game_state);
 
-	Celeste_P8_set_rndseed((unsigned)(time(NULL) + SDL_GetTicks()));
+	if (TAS) {
+		// a consistent seed for tas playback
+		Celeste_P8_set_rndseed(8);
+	} else {
+		Celeste_P8_set_rndseed((unsigned)(time(NULL) + SDL_GetTicks()));
+	}
 
 	Celeste_P8_init();
 
@@ -401,11 +415,20 @@ int main(int argc, char** argv) {
 						b = 5; break;
 					default: break;
 				}
-				if (b >= 0) {
+				if (!TAS && b >= 0) {
 					if (down) buttons_state |=  (1<<b);
 					else      buttons_state &= ~(1<<b);
 				}
 			}
+		}
+
+		if (TAS && !paused) {
+			static int t = 0;
+			t++;
+			if (t==1) buttons_state = 1<<4;
+			else if (t > 80) {
+				fscanf(TAS, "%d,", &buttons_state);
+			} else buttons_state = 0;
 		}
 
 		if (paused) {

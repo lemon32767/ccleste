@@ -13,6 +13,10 @@ else
 	LDFLAGS+=-lm
 endif
 
+ifneq ($(HACKED_BALLOONS),)
+	CFLAGS+=-DCELESTE_P8_HACKED_BALLOONS
+endif
+
 all: $(OUT)
 
 $(OUT): sdl12main.c $(CELESTE_OBJ) celeste.h

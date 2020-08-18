@@ -1052,7 +1052,12 @@ static void BALLOON_init(OBJ* this) {
 static void BALLOON_update(OBJ* this) {
 	if (this->spr==22) {
 		this->offset+=0.01;
+#ifdef CELESTE_P8_HACKED_BALLOONS
+		//hacked balloons: constant y coord and hitbox. for TASes
+		this->hitbox=(HITBOX){.x=-1,.y=-3,.w=10,.h=14};
+#else
 		this->y=this->start+P8sin(this->offset)*2;
+#endif
 		OBJ* hit = OBJ_collide(this, OBJ_PLAYER, 0,0);
 		if (hit != NULL && hit->djump<max_djump) {
 			psfx(6);
