@@ -310,13 +310,14 @@ static int deaths, max_djump;
 static bool start_game;
 static int start_game_flash;
 
-
-static int k_left = 0;
-static int k_right = 1;
-static int k_up = 2;
-static int k_down = 3;
-static int k_jump = 4;
-static int k_dash = 5;
+enum {
+  k_left  = 0,
+  k_right = 1,
+  k_up    = 2,
+  k_down  = 3,
+  k_jump  = 4,
+  k_dash  = 5
+};
 
 //with this X macro table thing we can define the properties that each object type has, in the original lua code these properties
 //are inferred from the `types` table
@@ -2008,7 +2009,7 @@ void Celeste_P8__DEBUG(void) {
 	V(room) V(freeze) V(shake) V(will_restart) V(delay_restart) V(got_fruit) \
 	V(has_dashed) V(sfx_timer) V(has_key) V(pause_player) V(flash_bg) V(music_timer) \
 	V(new_bg) V(frames) V(seconds) V(minutes) V(deaths) V(max_djump) V(start_game) \
-	V(start_game_flash) V(k_left) V(k_right) V(k_up) V(k_down) V(k_dash) V(clouds) \
+	V(start_game_flash) V(clouds) \
 	V(particles) V(particle_count) V(dead_particles) V(dead_particles_count) V(objects)
 
 size_t Celeste_P8_get_state_size(void) {
