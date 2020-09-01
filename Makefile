@@ -1,5 +1,21 @@
-CFLAGS=-Wall -g -O2
-LDFLAGS=`sdl-config --cflags --libs` -lSDL_mixer
+
+# set to 1 to use SDL1.2
+SDL_VER?=2
+
+ifeq ($(SDL_VER),2)
+	SDL_CONFIG=sdl2-config
+	SDL_LD=-lSDL2 -lSDL2_mixer
+else
+ifeq ($(SDL_VER),1)
+	SDL_CONFIG=sdl-config
+	SDL_LD=-lSDL -lSDL_mixer
+else
+	SDL_CONFIG=$(error "invalid SDL version '$(SDL_VER)'. possible values are '1' and '2'")
+endif
+endif
+
+CFLAGS=-Wall -g -O2 `$(SDL_CONFIG) --cflags`
+LDFLAGS=$(SDL_LD)
 CELESTE_CC=$(CC)
 
 ifneq ($(USE_FIXEDP),)

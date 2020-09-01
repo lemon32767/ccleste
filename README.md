@@ -6,6 +6,8 @@ This is a C source port of the [original celeste (Celeste classic)](https://www.
 
 Go to [the releases tab](https://github.com/lemon-sherbet/ccleste/releases) for the latest pre-built binaries.
 
+An experimental web port is also available [here](https://lemon-sherbet.github.io/ccleste.html).
+
 celeste.c + celeste.h is where the game code is, translated from the pico 8 lua code by hand.
 These files don't depend on anything other than the c standard library and don't perform any allocations (it uses its own internal global state).
 

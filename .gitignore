@@ -9,4 +9,5 @@ build/
 *.elf
 *.smdh
 win-build/
+em-build/
 ccleste-win.zip

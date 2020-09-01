@@ -1,5 +1,8 @@
 #include <SDL.h>
 #include <SDL_mixer.h>
+#if SDL_MAJOR_VERSION >= 2
+#include "sdl20compat.inc.c"
+#endif
 #include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -160,9 +163,9 @@ static void LoadData(void) {
 	loadbmpscale("font.bmp", &font);
 	LOGDONE();
 
-	static signed char sndids[] = {0,1,2,3,4,5,6,7,8,9,13,14,15,16,23,35,37,38,40,50,51,54,55, -1};
-	for (signed char* iid = sndids; *iid != -1; iid++) {
-		int id = *iid;
+	static const char sndids[] = {0,1,2,3,4,5,6,7,8,9,13,14,15,16,23,35,37,38,40,50,51,54,55};
+	for (int iid = 0; iid < sizeof sndids; iid++) {
+		int id = sndids[iid];
 		char fname[20];
 		sprintf(fname, "snd%i.wav", id);
 		char path[4096];
@@ -174,9 +177,9 @@ static void LoadData(void) {
 		}
 		LOGDONE();
 	}
-	static signed char musids[] = {0,10,20,30,40, -1};
-	for (signed char* iid = musids; *iid != -1; iid++) {
-		int id = *iid;
+	static const char musids[] = {0,10,20,30,40};
+	for (int iid = 0; iid < sizeof musids; iid++) {
+		int id = musids[iid];
 		char fname[20];
 		sprintf(fname, "mus%i.ogg", id);
 		LOGLOAD(fname);
@@ -229,6 +232,13 @@ static void OSDdraw(void) {
 	
 static Mix_Music* current_music = NULL;
 static _Bool enable_screenshake = 1;
+static _Bool paused = 0;
+static _Bool running = 1;
+static void* initial_game_state = NULL;
+static void* game_state = NULL;
+static Mix_Music* game_state_music = NULL;
+static void mainLoop(void);
+static FILE* TAS = NULL;
 
 int main(int argc, char** argv) {
 	SDL_CHECK(SDL_Init(SDL_INIT_AUDIO | SDL_INIT_VIDEO) == 0);
@@ -260,7 +270,6 @@ int main(int argc, char** argv) {
 	ResetPalette();
 	SDL_ShowCursor(0);
 
-	FILE* TAS = NULL;
 	if (argc > 1) {
 		TAS = fopen(argv[1], "r");
 		if (!TAS) {
@@ -310,7 +319,7 @@ int main(int argc, char** argv) {
 	Celeste_P8_set_call_func(pico8emu);
 
 	//for reset
-	void* initial_game_state = SDL_malloc(Celeste_P8_get_state_size());
+	initial_game_state = SDL_malloc(Celeste_P8_get_state_size());
 	if (initial_game_state) Celeste_P8_save_state(initial_game_state);
 
 	if (TAS) {
@@ -324,150 +333,15 @@ int main(int argc, char** argv) {
 
 	printf("ready\n");
 
-	void* game_state = NULL;
-	Mix_Music* game_state_music = NULL;
-
-	_Bool running = 1;
-	_Bool paused = 0;
-	while (running) {
-		Uint8* kbstate = SDL_GetKeyState(NULL);
-		
-		static int reset_input_timer = 0;
-		//hold F9 (select+start+y) to reset
-		if (initial_game_state != NULL
-#ifdef _3DS
-				&& kbstate[SDLK_LSHIFT] && kbstate[SDLK_ESCAPE] && kbstate[SDLK_F11]
+#ifndef EMSCRIPTEN
+	while (running) mainLoop();
 #else
-				&& kbstate[SDLK_F9]
+#include <emscripten.h>
+	//FIXME: this assumes that the display refreshes at 60Hz
+	emscripten_set_main_loop(mainLoop, 0, 0);
+	emscripten_set_main_loop_timing(EM_TIMING_RAF, 2);
+	return 0;
 #endif
-		) {
-			reset_input_timer++;
-			if (reset_input_timer >= 30) {
-				reset_input_timer=0;
-				//reset
-				OSDset("reset");
-				paused = 0;
-				Celeste_P8_load_state(initial_game_state);
-				Mix_HaltChannel(-1);
-				Mix_HaltMusic();
-				Celeste_P8_init();
-			}
-		} else reset_input_timer = 0;
-		SDL_Event ev;
-		while (SDL_PollEvent(&ev)) switch (ev.type) {
-			case SDL_QUIT: running = 0; break;
-			case SDL_KEYDOWN: {
-				/*if (ev.key.keysym.sym == SDLK_ESCAPE) {
-					running = 0;
-					break;
-				} else*/ if (ev.key.keysym.sym == SDLK_ESCAPE) { //do pause
-					if (paused) Mix_Resume(-1), Mix_ResumeMusic(); else Mix_Pause(-1), Mix_PauseMusic();
-					paused = !paused;
-					break;
-				} else if (ev.key.keysym.sym == SDLK_F11 && !(kbstate[SDLK_LSHIFT] || kbstate[SDLK_ESCAPE])) {
-					if (SDL_WM_ToggleFullScreen(screen)) { //this doesn't work on windows..
-						OSDset("toggle fullscreen");
-					}
-					break;
-				} else if (0 && ev.key.keysym.sym == SDLK_5) {
-					Celeste_P8__DEBUG();
-					break;
-				} else if (ev.key.keysym.sym == SDLK_s && kbstate[SDLK_LSHIFT]) { //save state
-					game_state = game_state ? game_state : SDL_malloc(Celeste_P8_get_state_size());
-					if (game_state) {
-						OSDset("save state");
-						Celeste_P8_save_state(game_state);
-						game_state_music = current_music;
-					}
-					break;
-				} else if (ev.key.keysym.sym == SDLK_d && kbstate[SDLK_LSHIFT]) { //load state
-					if (game_state) {
-						OSDset("load state");
-						if (paused) paused = 0, Mix_Resume(-1), Mix_ResumeMusic();
-						Celeste_P8_load_state(game_state);
-						if (current_music != game_state_music) {
-							Mix_HaltMusic();
-							current_music = game_state_music;
-							if (game_state_music) Mix_PlayMusic(game_state_music, -1);
-						}
-					}
-					break;
-				} else if ( //toggle screenshake (e / L+R)
-#ifdef _3DS
-						(ev.key.keysym.sym == SDLK_d && kbstate[SDLK_s]) || (ev.key.keysym.sym == SDLK_s && kbstate[SDLK_d])
-#else
-						ev.key.keysym.sym == SDLK_e
-#endif
-						) {
-					enable_screenshake = !enable_screenshake;
-					OSDset("screenshake: %s", enable_screenshake ? "on" : "off");
-				}
-				//else: fallthrough
-			}
-			case SDL_KEYUP: {
-				int down = ev.type == SDL_KEYDOWN;
-				int b = -1;
-				switch (ev.key.keysym.sym) {
-					case SDLK_LEFT:  b = 0; break;
-					case SDLK_RIGHT: b = 1; break;
-					case SDLK_UP:    b = 2; break;
-					case SDLK_DOWN:  b = 3; break;
-					case SDLK_z: case SDLK_c: case SDLK_n: case SDLK_a:
-						b = 4; break;
-					case SDLK_x: case SDLK_v: case SDLK_m: case SDLK_b:
-						b = 5; break;
-					default: break;
-				}
-				if (!TAS && b >= 0) {
-					if (down) buttons_state |=  (1<<b);
-					else      buttons_state &= ~(1<<b);
-				}
-			}
-		}
-
-		if (TAS && !paused) {
-			static int t = 0;
-			t++;
-			if (t==1) buttons_state = 1<<4;
-			else if (t > 80) {
-				fscanf(TAS, "%d,", &buttons_state);
-			} else buttons_state = 0;
-		}
-
-		if (paused) {
-			const int x0 = PICO8_W/2-3*4, y0 = 8;
-
-			p8_rectfill(x0-1,y0-1, 6*4+x0+1,6+y0+1, 6);
-			p8_rectfill(x0,y0, 6*4+x0,6+y0, 0);
-			p8_print("paused", x0+1, y0+1, 7);
-		} else {
-			Celeste_P8_update();
-			Celeste_P8_draw();
-		}
-		OSDdraw();
-
-		/*for (int i = 0 ; i < 16;i++) {
-			SDL_Rect rc = {i*8*scale, 0, 8*scale, 4*scale};
-			SDL_FillRect(screen, &rc, i);
-		}*/
-
-		SDL_Flip(screen);
-
-#ifdef _3DS //using SDL_DOUBLEBUF for videomode makes it so SDL_Flip waits for Vsync; so we dont have to delay manually
-		SDL_Delay(1);
-#else
-		static int t = 0;
-		static unsigned frame_start = 0;
-		unsigned frame_end = SDL_GetTicks();
-		unsigned frame_time = frame_end-frame_start;
-		static const unsigned target_millis = 1000/30;
-		if (frame_time < target_millis) {
-			SDL_Delay((target_millis - frame_time) + (t & 1));
-		}
-		t++;
-		frame_start = SDL_GetTicks();
-#endif
-	}
 
 	if (game_state) SDL_free(game_state);
 	if (initial_game_state) SDL_free(initial_game_state);
@@ -485,6 +359,148 @@ int main(int argc, char** argv) {
 	Mix_Quit();
 	SDL_Quit();
 	return 0;
+}
+
+static void mainLoop(void) {
+	const Uint8* kbstate = SDL_GetKeyState(NULL);
+		
+	static int reset_input_timer = 0;
+	//hold F9 (select+start+y) to reset
+	if (initial_game_state != NULL
+#ifdef _3DS
+			&& kbstate[SDLK_LSHIFT] && kbstate[SDLK_ESCAPE] && kbstate[SDLK_F11]
+#else
+			&& kbstate[SDLK_F9]
+#endif
+	) {
+		reset_input_timer++;
+		if (reset_input_timer >= 30) {
+			reset_input_timer=0;
+			//reset
+			OSDset("reset");
+			paused = 0;
+			Celeste_P8_load_state(initial_game_state);
+			Mix_HaltChannel(-1);
+			Mix_HaltMusic();
+			Celeste_P8_init();
+		}
+	} else reset_input_timer = 0;
+	SDL_Event ev;
+	while (SDL_PollEvent(&ev)) switch (ev.type) {
+		case SDL_QUIT: running = 0; break;
+		case SDL_KEYDOWN: {
+			/*if (ev.key.keysym.sym == SDLK_ESCAPE) {
+				running = 0;
+				break;
+			} else*/ if (ev.key.keysym.sym == SDLK_ESCAPE) { //do pause
+				if (paused) Mix_Resume(-1), Mix_ResumeMusic(); else Mix_Pause(-1), Mix_PauseMusic();
+				paused = !paused;
+				break;
+			} else if (ev.key.keysym.sym == SDLK_F11 && !(kbstate[SDLK_LSHIFT] || kbstate[SDLK_ESCAPE])) {
+				if (SDL_WM_ToggleFullScreen(screen)) { //this doesn't work on windows..
+					OSDset("toggle fullscreen");
+				}
+				screen = SDL_GetVideoSurface();
+				break;
+			} else if (0 && ev.key.keysym.sym == SDLK_5) {
+				Celeste_P8__DEBUG();
+				break;
+			} else if (ev.key.keysym.sym == SDLK_s && kbstate[SDLK_LSHIFT]) { //save state
+				game_state = game_state ? game_state : SDL_malloc(Celeste_P8_get_state_size());
+				if (game_state) {
+					OSDset("save state");
+					Celeste_P8_save_state(game_state);
+					game_state_music = current_music;
+				}
+				break;
+			} else if (ev.key.keysym.sym == SDLK_d && kbstate[SDLK_LSHIFT]) { //load state
+				if (game_state) {
+					OSDset("load state");
+					if (paused) paused = 0, Mix_Resume(-1), Mix_ResumeMusic();
+					Celeste_P8_load_state(game_state);
+					if (current_music != game_state_music) {
+						Mix_HaltMusic();
+						current_music = game_state_music;
+						if (game_state_music) Mix_PlayMusic(game_state_music, -1);
+					}
+				}
+				break;
+			} else if ( //toggle screenshake (e / L+R)
+#ifdef _3DS
+					(ev.key.keysym.sym == SDLK_d && kbstate[SDLK_s]) || (ev.key.keysym.sym == SDLK_s && kbstate[SDLK_d])
+#else
+					ev.key.keysym.sym == SDLK_e
+#endif
+					) {
+				enable_screenshake = !enable_screenshake;
+				OSDset("screenshake: %s", enable_screenshake ? "on" : "off");
+			}
+			//else: fallthrough
+		}
+		case SDL_KEYUP: {
+			int down = ev.type == SDL_KEYDOWN;
+			int b = -1;
+			switch (ev.key.keysym.sym) {
+				case SDLK_LEFT:  b = 0; break;
+				case SDLK_RIGHT: b = 1; break;
+				case SDLK_UP:    b = 2; break;
+				case SDLK_DOWN:  b = 3; break;
+				case SDLK_z: case SDLK_c: case SDLK_n: case SDLK_a:
+					b = 4; break;
+				case SDLK_x: case SDLK_v: case SDLK_m: case SDLK_b:
+					b = 5; break;
+				default: break;
+			}
+			if (!TAS && b >= 0) {
+				if (down) buttons_state |=  (1<<b);
+				else      buttons_state &= ~(1<<b);
+			}
+		}
+	}
+
+	if (TAS && !paused) {
+		static int t = 0;
+		t++;
+		if (t==1) buttons_state = 1<<4;
+		else if (t > 80) {
+			fscanf(TAS, "%d,", &buttons_state);
+		} else buttons_state = 0;
+	}
+
+	if (paused) {
+		const int x0 = PICO8_W/2-3*4, y0 = 8;
+
+		p8_rectfill(x0-1,y0-1, 6*4+x0+1,6+y0+1, 6);
+		p8_rectfill(x0,y0, 6*4+x0,6+y0, 0);
+		p8_print("paused", x0+1, y0+1, 7);
+	} else {
+		Celeste_P8_update();
+		Celeste_P8_draw();
+	}
+	OSDdraw();
+
+	/*for (int i = 0 ; i < 16;i++) {
+		SDL_Rect rc = {i*8*scale, 0, 8*scale, 4*scale};
+		SDL_FillRect(screen, &rc, i);
+	}*/
+
+	SDL_Flip(screen);
+
+#if defined(_3DS) /*using SDL_DOUBLEBUF for videomode makes it so SDL_Flip waits for Vsync; so we dont have to delay manually*/ \
+ || defined(EMSCRIPTEN) //emscripten_set_main_loop already sets the fps
+	SDL_Delay(1);
+#else
+	static int t = 0;
+	static unsigned frame_start = 0;
+	unsigned frame_end = SDL_GetTicks();
+	unsigned frame_time = frame_end-frame_start;
+	static const unsigned target_millis = 1000/30;
+	if (frame_time < target_millis) {
+		SDL_Delay((target_millis - frame_time) + (t & 1));
+	}
+	t++;
+	frame_start = SDL_GetTicks();
+#endif
 }
 
 static int gettileflag(int, int);
