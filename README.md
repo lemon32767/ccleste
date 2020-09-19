@@ -43,9 +43,7 @@ devkitARM
 |SHIFT+D           |Y+L                | Load state         |
 |SHIFT+S           |Y+R                | Save state         |
 |Hold F9           |Hold SELECT+START+Y| Reset              |
-|F11               |SELECT             | Fullscreen\*       |
-
-\* note: toggling fullscreen on PC is currently only supported on linux (X11)
+|F11               |SELECT             | Fullscreen         |
 
 Controller input is also supported on PC (SDL2 ver) and web version. The controller must be plugged in when opening the game.
 Jump with A and dash with B (xbox360 controller layout), move with d-pad or the left stick and pause with start.
