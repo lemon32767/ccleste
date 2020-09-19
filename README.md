@@ -47,6 +47,9 @@ devkitARM
 
 \* note: toggling fullscreen on PC is currently only supported on linux (X11)
 
+Controller input is also supported on PC (SDL2 ver) and web version. The controller must be plugged in when opening the game.
+Jump with A and dash with B (xbox360 controller layout), move with d-pad or the left stick and pause with start.
+
 # TAS playback and the fixed point question
 
 In order to playback a TAS, specify it as the first argument to the program when running it. On Windows you can drag the TAS file to the .exe to do this.

@@ -194,7 +194,7 @@ static void LoadData(void) {
 }
 #include "tilemap.h"
 
-int buttons_state = 0;
+static Uint8 buttons_state = 0;
 
 #define SDL_CHECK(r) do {                               \
 	if (!(r)) {                                           \
@@ -242,6 +242,10 @@ static FILE* TAS = NULL;
 
 int main(int argc, char** argv) {
 	SDL_CHECK(SDL_Init(SDL_INIT_AUDIO | SDL_INIT_VIDEO) == 0);
+#if SDL_MAJOR_VERSION >= 2
+	SDL_InitSubSystem(SDL_INIT_JOYSTICK);
+
+#endif
 	int videoflag = SDL_SWSURFACE | SDL_HWPALETTE;
 #ifdef _3DS
 	fsInit();
@@ -361,6 +365,10 @@ int main(int argc, char** argv) {
 	return 0;
 }
 
+#if SDL_MAJOR_VERSION >= 2
+static void ReadGamepadInput(Uint8* out_buttons, _Bool* out_presspause);
+#endif
+
 static void mainLoop(void) {
 	const Uint8* kbstate = SDL_GetKeyState(NULL);
 		
@@ -385,14 +393,26 @@ static void mainLoop(void) {
 			Celeste_P8_init();
 		}
 	} else reset_input_timer = 0;
+
+
+#if SDL_MAJOR_VERSION >= 2
+	SDL_GameControllerUpdate();
+	_Bool press_pause = 0;
+	ReadGamepadInput(&buttons_state, &press_pause);
+	if (press_pause) {
+		goto toggle_pause;
+	}
+#endif
+
 	SDL_Event ev;
 	while (SDL_PollEvent(&ev)) switch (ev.type) {
 		case SDL_QUIT: running = 0; break;
 		case SDL_KEYDOWN: {
-			/*if (ev.key.keysym.sym == SDLK_ESCAPE) {
-				running = 0;
-				break;
-			} else*/ if (ev.key.keysym.sym == SDLK_ESCAPE) { //do pause
+#if SDL_MAJOR_VERSION >= 2
+			if (ev.key.repeat) break; //no key repeat
+#endif
+			if (ev.key.keysym.sym == SDLK_ESCAPE) { //do pause
+				toggle_pause:
 				if (paused) Mix_Resume(-1), Mix_ResumeMusic(); else Mix_Pause(-1), Mix_PauseMusic();
 				paused = !paused;
 				break;
@@ -463,7 +483,9 @@ static void mainLoop(void) {
 		t++;
 		if (t==1) buttons_state = 1<<4;
 		else if (t > 80) {
-			fscanf(TAS, "%d,", &buttons_state);
+			int btn;
+			fscanf(TAS, "%d,", &btn);
+			buttons_state = btn;
 		} else buttons_state = 0;
 	}
 
@@ -657,6 +679,9 @@ int pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 			int rows = INT_ARG();
 			int flipx = BOOL_ARG();
 			int flipy = BOOL_ARG();
+
+			(void)cols;
+			(void)rows;
 
 			assert(rows == 1 && cols == 1);
 
@@ -883,5 +908,72 @@ static void p8_line(int x0, int y0, int x1, int y1, unsigned char color) {
 	}
 	#undef PLOT
 }
+
+#if SDL_MAJOR_VERSION >= 2
+//SDL2: read input from connected gamepad
+
+struct mapping {
+	SDL_GameControllerButton sdl_btn;
+	Uint8 pico8_btn;
+};
+static struct mapping controller_mappings[] = {
+	{SDL_CONTROLLER_BUTTON_A,          4}, //jump
+	{SDL_CONTROLLER_BUTTON_B,          5}, //dash
+	{SDL_CONTROLLER_BUTTON_DPAD_LEFT,  0}, //left
+	{SDL_CONTROLLER_BUTTON_DPAD_RIGHT, 1}, //right
+	{SDL_CONTROLLER_BUTTON_DPAD_UP,    2}, //up
+	{SDL_CONTROLLER_BUTTON_DPAD_DOWN,  3}, //down
+};
+static const Uint16 stick_deadzone = 32767 / 2; //about half
+
+static void ReadGamepadInput(Uint8* out_buttons, _Bool* out_presspause) {
+	static SDL_GameController* controller = NULL;
+	if (!controller) {
+		static int tries_left = 30;
+		if (!tries_left) return;
+		tries_left--;
+
+		//use first available controller
+		int count = SDL_NumJoysticks();
+		printf("sdl reports %i controllers\n", count);
+		for (int i = 0; i < count; i++) {
+			if (SDL_IsGameController(i)) {
+				controller = SDL_GameControllerOpen(i);
+				if (!controller) {
+					fprintf(stderr, "error opening controller: %s\n", SDL_GetError());
+					return;
+				}
+				printf("picked controller: '%s'\n", SDL_GameControllerName(controller));
+				break;
+			}
+		}
+	}
+
+	//pico 8 buttons
+	for (int i = 0; i < sizeof controller_mappings / sizeof *controller_mappings; i++) {
+		struct mapping mapping = controller_mappings[i];
+		_Bool pressed = SDL_GameControllerGetButton(controller, mapping.sdl_btn);
+		Uint8 mask = ~(1 << mapping.pico8_btn);
+		*out_buttons = (*out_buttons & mask) | (pressed << mapping.pico8_btn);
+	}
+
+	//toggle pause with start button
+	static _Bool previously_pressed_start = 0;
+	_Bool pressed_start = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_START);
+	if (!previously_pressed_start && pressed_start) {
+		*out_presspause = 1;
+	}
+	previously_pressed_start = pressed_start;
+
+	//joystick -> dpad input
+	Sint16 x_axis = SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTX);
+	Sint16 y_axis = SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTY);
+	if (x_axis < -stick_deadzone) *out_buttons |= (1 << 0); //left
+	if (x_axis >  stick_deadzone) *out_buttons |= (1 << 1); //right
+	if (y_axis < -stick_deadzone) *out_buttons |= (1 << 2); //up
+	if (y_axis >  stick_deadzone) *out_buttons |= (1 << 3); //down
+}
+#endif
+
 
 // vim: ts=2 sw=2 noexpandtab
