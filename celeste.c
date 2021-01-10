@@ -404,7 +404,6 @@ static bool is_title() {
 
 typedef struct {
 	float x,y,spd,w;
-	bool isLast;
 } CLOUD;
 static CLOUD clouds[17];
 //top level init code has been moved into a function
@@ -415,26 +414,22 @@ static void PRELUDE_initclouds() {
 			.y=P8rnd(128),
 			.spd=1+P8rnd(4),
 			.w=32+P8rnd(32),
-			.isLast = i == 16
 		};
 	}
 }
 
 typedef struct {
-	bool isLast, active;
+	bool active;
 	float x,y,s,spd,off,c,h,t;
 	VEC spd2; //used by dead particles, moved from spd
 } PARTICLE;
 static PARTICLE particles[25];
-int particle_count = 0;
-static PARTICLE dead_particles[25];
-int dead_particles_count = 0;
+static PARTICLE dead_particles[8];
+
 //top level init code has been moved into a function
 static void PRELUDE_initparticles() {
 	for (int i=0; i<=24; i++) {
 		particles[i] = (PARTICLE){
-			.isLast = i == 24,
-
 			.x=P8rnd(128),
 			.y=P8rnd(128),
 			.s=0+P8flr(P8rnd(5)/4),
@@ -442,7 +437,6 @@ static void PRELUDE_initparticles() {
 			.off=P8rnd(1),
 			.c=6+P8flr(0.5+P8rnd(1))
 		};
-		dead_particles[i].isLast = i == 24;
 	}
 }
 
@@ -1591,7 +1585,7 @@ static void kill_player(OBJ* obj) {
 	deaths+=1;
 	shake=10;
 	//destroy_object(obj);
-	dead_particles_count = 0;
+	int dead_particles_count = 0;
 	for (float dir=0; dir <= 7; dir+=1) {
 		float angle=(dir/8);
 		dead_particles[dead_particles_count++] = (PARTICLE){
@@ -1814,15 +1808,14 @@ void Celeste_P8_draw() {
 
 	// clouds
 	if (!is_title()) {
-		CLOUD* c = &clouds[0];
-		while (!c->isLast) {
+		for (int i = 0; i <= 16; i++) {
+			CLOUD* c = &clouds[i];
 			c->x += c->spd;
 			P8rectfill(c->x,c->y,c->x+c->w,c->y+4+(1-c->w/64.0)*12,new_bg ? 14 : 1);
 			if (c->x > 128) {
 				c->x = -c->w;
 				c->y = P8rnd(128-8);
 			}
-			c++;
 		}
 	}
 
@@ -1858,8 +1851,8 @@ void Celeste_P8_draw() {
 	P8map(room.x * 16,room.y * 16,0,0,16,16,8);
    
 	// particles
-	PARTICLE* p = &particles[0];
-	while (!p->isLast) {
+	for (int i = 0; i <= 24; i++) {
+		PARTICLE* p = &particles[i];
 		p->x += p->spd;
 		p->y += P8sin(p->off);
 		p->off+= P8min(0.05,p->spd/32);
@@ -1872,8 +1865,8 @@ void Celeste_P8_draw() {
 	}
    
 	// dead particles
-	p = &dead_particles[0];
-	while (!p->isLast) {
+	for (int i = 0; i <= 7; i++) {
+		PARTICLE* p = &dead_particles[i];
 		if (p->active) {
 			p->x += p->spd2.x;
 			p->y += p->spd2.y;
@@ -2010,8 +2003,7 @@ void Celeste_P8__DEBUG(void) {
 	V(room) V(freeze) V(shake) V(will_restart) V(delay_restart) V(got_fruit) \
 	V(has_dashed) V(sfx_timer) V(has_key) V(pause_player) V(flash_bg) V(music_timer) \
 	V(new_bg) V(frames) V(seconds) V(minutes) V(deaths) V(max_djump) V(start_game) \
-	V(start_game_flash) V(clouds) \
-	V(particles) V(particle_count) V(dead_particles) V(dead_particles_count) V(objects)
+	V(start_game_flash) V(clouds) V(particles) V(dead_particles) V(objects)
 
 size_t Celeste_P8_get_state_size(void) {
 #define V_SIZE(v) (sizeof v) +
