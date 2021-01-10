@@ -859,10 +859,10 @@ static void PLAYER_update(OBJ* this) {
 			}
 			if (this->spd.x!=0) {
 				this->dash_accel.y*=0.70710678118f;
-			} else if (dash && this->djump<=0) {
-				psfx(9);
-				init_object(OBJ_SMOKE,this->x,this->y);
 			}
+		} else if (dash && this->djump<=0) {
+			psfx(9);
+			init_object(OBJ_SMOKE,this->x,this->y);
 		}
 	}
    
@@ -925,13 +925,14 @@ static void draw_hair(OBJ* obj, int facing) {
 	float last_y=obj->y+(P8btn(k_down) ? 4 : 3);
 	HAIR* h;
 	int i = 0;
-	while (!(h = &obj->hair[i++])->isLast) {
+	do {
+		h = &obj->hair[i++];
 		h->x+=(last_x-h->x)/1.5;
 		h->y+=(last_y+0.5-h->y)/1.5;
 		P8circfill(h->x,h->y,h->size,8);
 		last_x=h->x;
 		last_y=h->y;
-	}
+	} while (!h->isLast);
 }
 
 static void unset_hair_color() {
