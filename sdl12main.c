@@ -640,10 +640,9 @@ int pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 	#define  BOOL_ARG() (Celeste_P8_bool_t)va_arg(args, int)
 	#define RET_INT(_i)   do {ret = (_i); goto end;} while (0)
 	#define RET_BOOL(_b) RET_INT(!!(_b))
-	#define CASE(t, ...) case t: {__VA_ARGS__;} break;
 
 	switch (call) {
-		CASE(CELESTE_P8_MUSIC, //music(idx,fade,mask)
+		case CELESTE_P8_MUSIC: { //music(idx,fade,mask)
 			int index = INT_ARG();
 			int fade = INT_ARG();
 			int mask = INT_ARG();
@@ -658,8 +657,8 @@ int pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 				current_music = musi;
 				Mix_FadeInMusic(musi, -1, fade);
 			}
-		)
-		CASE(CELESTE_P8_SPR, //spr(sprite,x,y,cols,rows,flipx,flipy)
+		} break;
+		case CELESTE_P8_SPR: { //spr(sprite,x,y,cols,rows,flipx,flipy)
 			int sprite = INT_ARG();
 			int x = INT_ARG();
 			int y = INT_ARG();
@@ -687,28 +686,28 @@ int pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 				};
 				Xblit(gfx, &srcrc, screen, &dstrc, 0,flipx,flipy);
 			}
-		)
-		CASE(CELESTE_P8_BTN, //btn(b)
+		} break;
+		case CELESTE_P8_BTN: { //btn(b)
 			RET_BOOL(buttons_state & (1 << (INT_ARG())));
-		)
-		CASE(CELESTE_P8_SFX, //sfx(id)
+		} break;
+		case CELESTE_P8_SFX: { //sfx(id)
 			int id = INT_ARG();
 		
 			if (id < (sizeof snd) / (sizeof*snd) && snd[id])
 				Mix_PlayChannel(-1, snd[id], 0);
-		)
-		CASE(CELESTE_P8_PAL, //pal(a,b)
+		} break;
+		case CELESTE_P8_PAL: { //pal(a,b)
 			int a = INT_ARG();
 			int b = INT_ARG();
 			if (a >= 0 && a < 16 && b >= 0 && b < 16) {
 				//swap palette colors
 				palette[a] = base_palette[b];
 			}
-		)
-		CASE(CELESTE_P8_PAL_RESET, //pal()
+		} break;
+		case CELESTE_P8_PAL_RESET: { //pal()
 			ResetPalette();
-		)
-		CASE(CELESTE_P8_CIRCFILL, //circfill(x,y,r,col)
+		} break;
+		case CELESTE_P8_CIRCFILL: { //circfill(x,y,r,col)
 			int cx = INT_ARG() - camera_x;
 			int cy = INT_ARG() - camera_y;
 			int r = INT_ARG();
@@ -755,8 +754,8 @@ int pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 					p8_line(cx+y,cy-x, cx-y,cy-x, col);
 				}
 			}
-		)
-		CASE(CELESTE_P8_PRINT, //print(str,x,y,col)
+		} break;
+		case CELESTE_P8_PRINT: { //print(str,x,y,col)
 			const char* str = va_arg(args, const char*);
 			int x = INT_ARG() - camera_x;
 			int y = INT_ARG() - camera_y;
@@ -770,8 +769,8 @@ int pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 #endif
 
 			p8_print(str,x,y,col);
-		)
-		CASE(CELESTE_P8_RECTFILL, //rectfill(x0,y0,x1,y1,col)
+		} break;
+		case CELESTE_P8_RECTFILL: { //rectfill(x0,y0,x1,y1,col)
 			int x0 = INT_ARG() - camera_x;
 			int y0 = INT_ARG() - camera_y;
 			int x1 = INT_ARG() - camera_x;
@@ -779,8 +778,8 @@ int pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 			int col = INT_ARG();
 
 			p8_rectfill(x0,y0,x1,y1,col);
-		)
-		CASE(CELESTE_P8_LINE, //line(x0,y0,x1,y1,col)
+		} break;
+		case CELESTE_P8_LINE: { //line(x0,y0,x1,y1,col)
 			int x0 = INT_ARG() - camera_x;
 			int y0 = INT_ARG() - camera_y;
 			int x1 = INT_ARG() - camera_x;
@@ -788,26 +787,26 @@ int pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 			int col = INT_ARG();
 
 			p8_line(x0,y0,x1,y1,col);
-		)
-		CASE(CELESTE_P8_MGET, //mget(tx,ty)
+		} break;
+		case CELESTE_P8_MGET: { //mget(tx,ty)
 			int tx = INT_ARG();
 			int ty = INT_ARG();
 
 			RET_INT(tilemap_data[tx+ty*128]);
-		)
-		CASE(CELESTE_P8_CAMERA, //camera(x,y)
+		} break;
+		case CELESTE_P8_CAMERA: { //camera(x,y)
 			if (enable_screenshake) {
 				camera_x = INT_ARG();
 				camera_y = INT_ARG();
 			}
-		)
-		CASE(CELESTE_P8_FGET, //fget(tile,flag)
+		} break;
+		case CELESTE_P8_FGET: { //fget(tile,flag)
 			int tile = INT_ARG();
 			int flag = INT_ARG();
 
 			RET_INT(gettileflag(tile, flag));
-		)
-		CASE(CELESTE_P8_MAP, //map(mx,my,tx,ty,mw,mh,mask)
+		} break;
+		case CELESTE_P8_MAP: { //map(mx,my,tx,ty,mw,mh,mask)
 			int mx = INT_ARG(), my = INT_ARG();
 			int tx = INT_ARG(), ty = INT_ARG();
 			int mw = INT_ARG(), mh = INT_ARG();
@@ -843,7 +842,7 @@ int pico8emu(CELESTE_P8_CALLBACK_TYPE call, ...) {
 					}
 				}
 			}
-		)
+		} break;
 	}
 
 	end:
