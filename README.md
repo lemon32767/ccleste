@@ -11,10 +11,11 @@ An experimental web port is also available [here](https://lemon-sherbet.github.i
 celeste.c + celeste.h is where the game code is, translated from the pico 8 lua code by hand.
 These files don't depend on anything other than the c standard library and don't perform any allocations (it uses its own internal global state).
 
-sdl12main.c provides a "frontend" written in SDL1.2 (plus SDL mixer) which implements graphics and audio output. It can be compiled on unix-like platforms by running
+sdl12main.c provides a "frontend" written in SDL (plus SDL mixer) which implements graphics and audio output. It can be compiled on unix-like platforms by running
 ```
 make
 ```
+By default, SDL2 will be used. Read the Makefile for more information.
 
 3DS is also a supported platform. Compile to 3DS with:
 ```
