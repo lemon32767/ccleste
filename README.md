@@ -47,7 +47,8 @@ devkitARM
 |F11               |SELECT             | Fullscreen         |
 
 Controller input is also supported on PC (SDL2 ver) and web version. The controller must be plugged in when opening the game.
-Jump with A and dash with B (xbox360 controller layout), move with d-pad or the left stick and pause with start.
+The default mappings are: jump with A and dash with B (xbox360 controller layout), move with d-pad or the left stick and pause with start.
+You can change these mappings by modifying the `ccleste-input-cfg.txt` file that will be created when you first run the game.
 
 # TAS playback and the fixed point question
 

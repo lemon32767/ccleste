@@ -903,17 +903,67 @@ struct mapping {
 	SDL_GameControllerButton sdl_btn;
 	Uint8 pico8_btn;
 };
-static struct mapping controller_mappings[] = {
-	{SDL_CONTROLLER_BUTTON_A,          4}, //jump
-	{SDL_CONTROLLER_BUTTON_B,          5}, //dash
+static const char* pico8_btn_names[] = {
+	"left", "right", "up", "down", "jump", "dash"
+};
+
+// initialized with default mapping
+static struct mapping controller_mappings[20] = {
 	{SDL_CONTROLLER_BUTTON_DPAD_LEFT,  0}, //left
 	{SDL_CONTROLLER_BUTTON_DPAD_RIGHT, 1}, //right
 	{SDL_CONTROLLER_BUTTON_DPAD_UP,    2}, //up
 	{SDL_CONTROLLER_BUTTON_DPAD_DOWN,  3}, //down
+	{SDL_CONTROLLER_BUTTON_A,          4}, //jump
+	{SDL_CONTROLLER_BUTTON_B,          5}, //dash
+	{0xff, 0xff}
 };
 static const Uint16 stick_deadzone = 32767 / 2; //about half
 
 static void ReadGamepadInput(Uint8* out_buttons, _Bool* out_presspause) {
+	static _Bool read_config = 0;
+	if (!read_config) {
+		read_config = 1;
+		const char* cfg_file_path = getenv("CCLESTE_INPUT_CFG_PATH");
+		if (!cfg_file_path) {
+			cfg_file_path  = "ccleste-input-cfg.txt";
+		}
+		FILE* cfg = fopen(cfg_file_path, "r");
+		if (cfg) {
+			int i;
+			for (i = 0; i < sizeof controller_mappings / sizeof *controller_mappings - 1;) {
+				char line[100], p8btn[21], sdlbtn[21];
+				fgets(line, sizeof line - 1, cfg);
+				if (feof(cfg) || ferror(cfg)) break;
+				line[sizeof line - 1] = 0;
+				if (*line == '#') {
+					//comment
+				} else if (sscanf(line, "%20s %20s", p8btn, sdlbtn) == 2) {
+					p8btn[sizeof p8btn - 1] = sdlbtn[sizeof sdlbtn - 1] = 0;
+					for (int btn = 0; btn < sizeof pico8_btn_names / sizeof *pico8_btn_names; btn++) {
+						if (!SDL_strcasecmp(pico8_btn_names[btn], p8btn)) {
+							printf("input cfg: %s -> %s\n", p8btn, sdlbtn);
+							controller_mappings[i].sdl_btn = SDL_GameControllerGetButtonFromString(sdlbtn);
+							controller_mappings[i].pico8_btn = btn;
+							i++;
+						}
+					}
+				}
+			}
+			controller_mappings[i].pico8_btn = 0xFF;
+			fclose(cfg);
+		} else {
+			cfg = fopen(cfg_file_path, "w");
+			if (cfg) {
+				printf("creating ccleste-input-cfg.txt with default button mappings\n");
+				fprintf(cfg, "# in-game \tcontroller\n");
+				for (struct mapping* mapping = controller_mappings; mapping->pico8_btn != 0xFF; mapping++) {
+					fprintf(cfg, "%s \t%s\n", pico8_btn_names[mapping->pico8_btn], SDL_GameControllerGetStringForButton(mapping->sdl_btn));
+				}
+				fclose(cfg);
+			}
+		}
+	}
+
 	static SDL_GameController* controller = NULL;
 	if (!controller) {
 		static int tries_left = 30;
@@ -939,6 +989,7 @@ static void ReadGamepadInput(Uint8* out_buttons, _Bool* out_presspause) {
 	//pico 8 buttons
 	for (int i = 0; i < sizeof controller_mappings / sizeof *controller_mappings; i++) {
 		struct mapping mapping = controller_mappings[i];
+		if (mapping.pico8_btn == 0xFF) break;
 		_Bool pressed = SDL_GameControllerGetButton(controller, mapping.sdl_btn);
 		Uint8 mask = ~(1 << mapping.pico8_btn);
 		*out_buttons = (*out_buttons & mask) | (pressed << mapping.pico8_btn);
