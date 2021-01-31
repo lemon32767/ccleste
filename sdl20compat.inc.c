@@ -71,6 +71,8 @@ static void SDL_Flip(SDL_Surface* screen) {
   assert(screen == sdl2_screen);
   assert(sdl2_window != NULL);
   SDL_UpdateTexture(sdl2_screen_tex, NULL, screen->pixels, screen->pitch);
+  SDL_SetRenderDrawColor(sdl2_rendr, 0, 0, 0, 255);
+  SDL_RenderClear(sdl2_rendr);
   SDL_RenderCopy(sdl2_rendr, sdl2_screen_tex, NULL, NULL);
   SDL_RenderPresent(sdl2_rendr);
 }
