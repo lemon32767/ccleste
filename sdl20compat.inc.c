@@ -8,13 +8,40 @@ enum {
   SDL_HWPALETTE = 8,
 };
 static SDL_Surface* sdl2_screen = NULL;
+static SDL_Texture* sdl2_screen_tex = NULL;
 static SDL_Window* sdl2_window = NULL;
+static SDL_Renderer* sdl2_rendr = NULL;
 static SDL_Surface *SDL_SetVideoMode(int width, int height, int bpp, Uint32 flags) {
   if (!sdl2_window) {
-    sdl2_window = SDL_CreateWindow("", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, 0);
-    if (!sdl2_window) return NULL;
+    sdl2_window = SDL_CreateWindow("", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, SDL_WINDOW_RESIZABLE);
+    if (!sdl2_window) goto die;
+    sdl2_rendr = SDL_CreateRenderer(sdl2_window, -1, 0);
+    SDL_RenderSetLogicalSize(sdl2_rendr, width, height);
+    if (!sdl2_rendr) goto die;
+    sdl2_screen_tex = SDL_CreateTexture(sdl2_rendr, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, width, height);
+
+    if (0) {
+    die:
+      if (sdl2_window) SDL_DestroyWindow(sdl2_window);
+      if (sdl2_screen_tex) SDL_DestroyTexture(sdl2_screen_tex);
+      if (sdl2_rendr) SDL_DestroyRenderer(sdl2_rendr);
+      return NULL;
+    }
   }
-  sdl2_screen = SDL_GetWindowSurface(sdl2_window);
+#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+  int
+    rmask = 0xff000000,
+    gmask = 0x00ff0000,
+    bmask = 0x0000ff00,
+    amask = 0x000000ff;
+#else
+  int
+    rmask = 0x000000ff,
+    gmask = 0x0000ff00,
+    bmask = 0x00ff0000,
+    amask = 0xff000000;
+#endif
+  sdl2_screen = SDL_CreateRGBSurface(0, width, height, 32, rmask, gmask, bmask, amask);
   assert(sdl2_screen && sdl2_screen->format->BitsPerPixel == bpp);
   return sdl2_screen;
 }
@@ -38,15 +65,15 @@ static int SDL_WM_ToggleFullScreen(SDL_Surface* screen) {
   return SDL_SetWindowFullscreen(sdl2_window, fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0) == 0;
 }
 static SDL_Surface* SDL_GetVideoSurface(void) {
-  return sdl2_screen = SDL_GetWindowSurface(sdl2_window);
+  return sdl2_screen;
 }
-static void SDL_Flip_(SDL_Surface* screen) {
+static void SDL_Flip(SDL_Surface* screen) {
   assert(screen == sdl2_screen);
   assert(sdl2_window != NULL);
-  SDL_UpdateWindowSurface(sdl2_window);
+  SDL_UpdateTexture(sdl2_screen_tex, NULL, screen->pixels, screen->pitch);
+  SDL_RenderCopy(sdl2_rendr, sdl2_screen_tex, NULL, NULL);
+  SDL_RenderPresent(sdl2_rendr);
 }
-//hack because for some reason SDL_GetVideoSurface right after SDL_SetWindowFullscreen isn't enough to get the screen back(?) (i think its because of a resize event)
-#define SDL_Flip(ref_screen) SDL_Flip_((ref_screen = SDL_GetVideoSurface()))
 
 #define SDL_GetKeyState SDL_GetKeyboardState
 //the above function now returns array indexed by scancodes, so we need to use those constants
