@@ -504,11 +504,17 @@ static void mainLoop(void) {
 	static unsigned frame_start = 0;
 	unsigned frame_end = SDL_GetTicks();
 	unsigned frame_time = frame_end-frame_start;
-	static const unsigned target_millis = 1000/30;
+	unsigned target_millis;
+	// frame timing for 30fps is 33.333... ms, but we only have integer granularity
+	// so alternate between 33 and 34 ms, like [33,33,34,33,33,34,...] which averages out to 33.333...
+	if (t < 2) target_millis = 33;
+	else       target_millis = 34;
+
+	if (++t == 3) t = 0;
+
 	if (frame_time < target_millis) {
-		SDL_Delay((target_millis - frame_time) + (t & 1));
+		SDL_Delay(target_millis - frame_time);
 	}
-	t++;
 	frame_start = SDL_GetTicks();
 #endif
 }
