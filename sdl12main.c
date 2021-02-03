@@ -194,7 +194,7 @@ static void LoadData(void) {
 }
 #include "tilemap.h"
 
-static Uint8 buttons_state = 0;
+static Uint16 buttons_state = 0;
 
 #define SDL_CHECK(r) do {                               \
 	if (!(r)) {                                           \
@@ -336,6 +336,7 @@ int main(int argc, char** argv) {
 	Celeste_P8_init();
 
 	printf("ready\n");
+	SDL_WM_ToggleFullScreen(screen);
 
 #ifndef EMSCRIPTEN
 	while (running) mainLoop();
@@ -366,7 +367,7 @@ int main(int argc, char** argv) {
 }
 
 #if SDL_MAJOR_VERSION >= 2
-static void ReadGamepadInput(Uint8* out_buttons, _Bool* out_presspause);
+static void ReadGamepadInput(Uint16* out_buttons, _Bool* out_presspause);
 #endif
 
 static void mainLoop(void) {
@@ -403,6 +404,15 @@ static void mainLoop(void) {
 	if (press_pause) {
 		goto toggle_pause;
 	}
+	if ((buttons_state>>8) & 1){
+		goto press_exit;
+	}
+	if ((buttons_state>>6) & 1){
+		goto save_state;
+	}
+	if ((buttons_state>>7) & 1){
+		goto load_state;
+	}
 #endif
 
 	SDL_Event ev;
@@ -417,6 +427,10 @@ static void mainLoop(void) {
 				if (paused) Mix_Resume(-1), Mix_ResumeMusic(); else Mix_Pause(-1), Mix_PauseMusic();
 				paused = !paused;
 				break;
+			} else if (ev.key.keysym.sym == SDLK_DELETE) { //exit
+				press_exit:
+				running = 0;
+				break;
 			} else if (ev.key.keysym.sym == SDLK_F11 && !(kbstate[SDLK_LSHIFT] || kbstate[SDLK_ESCAPE])) {
 				if (SDL_WM_ToggleFullScreen(screen)) { //this doesn't work on windows..
 					OSDset("toggle fullscreen");
@@ -427,6 +441,7 @@ static void mainLoop(void) {
 				Celeste_P8__DEBUG();
 				break;
 			} else if (ev.key.keysym.sym == SDLK_s && kbstate[SDLK_LSHIFT]) { //save state
+				save_state:
 				game_state = game_state ? game_state : SDL_malloc(Celeste_P8_get_state_size());
 				if (game_state) {
 					OSDset("save state");
@@ -435,6 +450,7 @@ static void mainLoop(void) {
 				}
 				break;
 			} else if (ev.key.keysym.sym == SDLK_d && kbstate[SDLK_LSHIFT]) { //load state
+				load_state:
 				if (game_state) {
 					OSDset("load state");
 					if (paused) paused = 0, Mix_Resume(-1), Mix_ResumeMusic();
@@ -907,25 +923,28 @@ static void p8_line(int x0, int y0, int x1, int y1, unsigned char color) {
 
 struct mapping {
 	SDL_GameControllerButton sdl_btn;
-	Uint8 pico8_btn;
+	Uint16 pico8_btn;
 };
 static const char* pico8_btn_names[] = {
-	"left", "right", "up", "down", "jump", "dash"
+	"left", "right", "up", "down", "jump", "dash", "save", "load", "exit"
 };
 
 // initialized with default mapping
-static struct mapping controller_mappings[20] = {
+static struct mapping controller_mappings[30] = {
 	{SDL_CONTROLLER_BUTTON_DPAD_LEFT,  0}, //left
 	{SDL_CONTROLLER_BUTTON_DPAD_RIGHT, 1}, //right
 	{SDL_CONTROLLER_BUTTON_DPAD_UP,    2}, //up
 	{SDL_CONTROLLER_BUTTON_DPAD_DOWN,  3}, //down
 	{SDL_CONTROLLER_BUTTON_A,          4}, //jump
 	{SDL_CONTROLLER_BUTTON_B,          5}, //dash
+	{SDL_CONTROLLER_BUTTON_LEFTSHOULDER,      6}, //save
+	{SDL_CONTROLLER_BUTTON_RIGHTSHOULDER,    7}, //load
+	{SDL_CONTROLLER_BUTTON_GUIDE,      8}, //exit
 	{0xff, 0xff}
 };
 static const Uint16 stick_deadzone = 32767 / 2; //about half
 
-static void ReadGamepadInput(Uint8* out_buttons, _Bool* out_presspause) {
+static void ReadGamepadInput(Uint16* out_buttons, _Bool* out_presspause) {
 	static _Bool read_config = 0;
 	if (!read_config) {
 		read_config = 1;
@@ -937,13 +956,13 @@ static void ReadGamepadInput(Uint8* out_buttons, _Bool* out_presspause) {
 		if (cfg) {
 			int i;
 			for (i = 0; i < sizeof controller_mappings / sizeof *controller_mappings - 1;) {
-				char line[100], p8btn[21], sdlbtn[21];
+				char line[150], p8btn[31], sdlbtn[31];
 				fgets(line, sizeof line - 1, cfg);
 				if (feof(cfg) || ferror(cfg)) break;
 				line[sizeof line - 1] = 0;
 				if (*line == '#') {
 					//comment
-				} else if (sscanf(line, "%20s %20s", p8btn, sdlbtn) == 2) {
+				} else if (sscanf(line, "%30s %30s", p8btn, sdlbtn) == 2) {
 					p8btn[sizeof p8btn - 1] = sdlbtn[sizeof sdlbtn - 1] = 0;
 					for (int btn = 0; btn < sizeof pico8_btn_names / sizeof *pico8_btn_names; btn++) {
 						if (!SDL_strcasecmp(pico8_btn_names[btn], p8btn)) {
@@ -997,7 +1016,7 @@ static void ReadGamepadInput(Uint8* out_buttons, _Bool* out_presspause) {
 		struct mapping mapping = controller_mappings[i];
 		if (mapping.pico8_btn == 0xFF) break;
 		_Bool pressed = SDL_GameControllerGetButton(controller, mapping.sdl_btn);
-		Uint8 mask = ~(1 << mapping.pico8_btn);
+		Uint16 mask = ~(1 << mapping.pico8_btn);
 		*out_buttons = (*out_buttons & mask) | (pressed << mapping.pico8_btn);
 	}
 
