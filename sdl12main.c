@@ -243,8 +243,8 @@ static FILE* TAS = NULL;
 int main(int argc, char** argv) {
 	SDL_CHECK(SDL_Init(SDL_INIT_AUDIO | SDL_INIT_VIDEO) == 0);
 #if SDL_MAJOR_VERSION >= 2
-	SDL_InitSubSystem(SDL_INIT_JOYSTICK);
-
+	SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER);
+	SDL_GameControllerAddMappingsFromRW(SDL_RWFromFile("gamecontrollerdb.txt", "rb"), 1);
 #endif
 	int videoflag = SDL_SWSURFACE | SDL_HWPALETTE;
 #ifdef _3DS
