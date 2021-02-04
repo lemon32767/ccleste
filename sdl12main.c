@@ -336,7 +336,14 @@ int main(int argc, char** argv) {
 	Celeste_P8_init();
 
 	printf("ready\n");
-	SDL_WM_ToggleFullScreen(screen);
+	{
+		FILE* start_fullscreen_f = fopen("ccleste-start-fullscreen.txt", "r");
+		const char* start_fullscreen_v = getenv("CCLESTE_START_FULLSCREEN");
+		if (start_fullscreen_f || (start_fullscreen_v && *start_fullscreen_v)) {
+			SDL_WM_ToggleFullScreen(screen);
+		}
+		if (start_fullscreen_f) fclose(start_fullscreen_f);
+	}
 
 #ifndef EMSCRIPTEN
 	while (running) mainLoop();
