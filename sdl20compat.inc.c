@@ -81,6 +81,7 @@ static void SDL_Flip(SDL_Surface* screen) {
 //the above function now returns array indexed by scancodes, so we need to use those constants
 #define SDLK_F9 SDL_SCANCODE_F9
 #define SDLK_ESCAPE SDL_SCANCODE_ESCAPE
+#define SDLK_DELETE SDL_SCANCODE_DELETE
 #define SDLK_F11 SDL_SCANCODE_F11
 #define SDLK_LSHIFT SDL_SCANCODE_LSHIFT
 #define SDLK_LEFT SDL_SCANCODE_LEFT
