@@ -36,7 +36,7 @@ endif
 all: $(OUT)
 
 $(OUT): sdl12main.c $(CELESTE_OBJ) celeste.h sdl20compat.inc.c
-	$(CC) $(CFLAGS) $(LDFLAGS) sdl12main.c $(CELESTE_OBJ) -o $(OUT) 
+	$(CC) $(CFLAGS) sdl12main.c $(CELESTE_OBJ) -o $(OUT) $(LDFLAGS)
 
 $(CELESTE_OBJ): celeste.c celeste.h
 	$(CELESTE_CC) $(CFLAGS) -c -o $(CELESTE_OBJ) celeste.c
