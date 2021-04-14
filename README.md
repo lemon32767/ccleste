@@ -77,4 +77,4 @@ You can combine both of these with `make HACKED_BALLOONS=1 USE_FIXEDP=1`.
 Sound wave files are taken from [https://github.com/JeffRuLz/Celeste-Classic-GBA/tree/master/maxmod_data](https://github.com/JeffRuLz/Celeste-Classic-GBA/tree/master/maxmod_data),
 music ogg files were obtained by converting the .wav dumps from pico 8, which I did using audacity & ffmpeg.
 
-All credit for the original game goes to the original developers (Matt Thorson & Noel Berry).
+All credit for the original game goes to the original developers (Maddy Thorson & Noel Berry).
