@@ -403,6 +403,7 @@ static void mainLoop(void) {
 			OSDset("reset");
 			paused = 0;
 			Celeste_P8_load_state(initial_game_state);
+			Celeste_P8_set_rndseed((unsigned)(time(NULL) + SDL_GetTicks()));
 			Mix_HaltChannel(-1);
 			Mix_HaltMusic();
 			Celeste_P8_init();
