@@ -240,6 +240,41 @@ static Mix_Music* game_state_music = NULL;
 static void mainLoop(void);
 static FILE* TAS = NULL;
 
+#ifdef _3DS
+// hack: newer SDL versions remove SDL_N3DSKeyBind, but I'm too lazy to change the
+// code to properly use SDL_Joystick inputs on 3DS so work around it ...
+static short n3ds_key_map[32];
+
+static void SDL_N3DSKeyBind(int n3dskey, int kbkey) {
+	for (int i = 0; i < 32; i++)
+		if (n3dskey & (1u << i))
+			n3ds_key_map[i] = kbkey;
+}
+#define SDL_GetKeyState n3ds_get_fake_key_state
+static Uint8 *n3ds_get_fake_key_state(int *numkeys) {
+	static Uint8 st[SDLK_LAST];
+	if (numkeys) *numkeys = SDLK_LAST;
+
+	memset(st, 0, sizeof st);
+	hidScanInput();
+	Uint32 down = hidKeysDown();
+	Uint32 held = hidKeysHeld();
+	for (int i = 0; i < 32; i++) {
+		st[n3ds_key_map[i]] |= (held & (1u << i)) != 0;
+		if (down & (1u << i)) {
+			SDL_Event ev;
+			ev.type = SDL_KEYDOWN;
+			ev.key.keysym.sym = n3ds_key_map[i];
+			SDL_PushEvent(&ev);
+		}
+	}
+#define checkkey(k) if (held & k) printf("held %s\n",#k);
+	// checkkey(KEY_B);
+
+	return st;
+}
+#endif
+
 int main(int argc, char** argv) {
 	SDL_CHECK(SDL_Init(SDL_INIT_AUDIO | SDL_INIT_VIDEO) == 0);
 #if SDL_MAJOR_VERSION >= 2
@@ -251,10 +286,12 @@ int main(int argc, char** argv) {
 	fsInit();
 	romfsInit();
 	videoflag = SDL_DOUBLEBUF | SDL_HWSURFACE | SDL_CONSOLEBOTTOM | SDL_TOPSCR;
-	SDL_N3DSKeyBind(KEY_CPAD_UP|KEY_CSTICK_UP, SDLK_UP);
-	SDL_N3DSKeyBind(KEY_CPAD_DOWN|KEY_CSTICK_DOWN, SDLK_DOWN);
-	SDL_N3DSKeyBind(KEY_CPAD_LEFT|KEY_CSTICK_LEFT, SDLK_LEFT);
-	SDL_N3DSKeyBind(KEY_CPAD_RIGHT|KEY_CSTICK_RIGHT, SDLK_RIGHT);
+	SDL_N3DSKeyBind(KEY_A, SDLK_z);
+	SDL_N3DSKeyBind(KEY_X|KEY_B, SDLK_x);
+	SDL_N3DSKeyBind(KEY_CPAD_UP|KEY_CSTICK_UP|KEY_DUP, SDLK_UP);
+	SDL_N3DSKeyBind(KEY_CPAD_DOWN|KEY_CSTICK_DOWN|KEY_DDOWN, SDLK_DOWN);
+	SDL_N3DSKeyBind(KEY_CPAD_LEFT|KEY_CSTICK_LEFT|KEY_DLEFT, SDLK_LEFT);
+	SDL_N3DSKeyBind(KEY_CPAD_RIGHT|KEY_CSTICK_RIGHT|KEY_DRIGHT, SDLK_RIGHT);
 	SDL_N3DSKeyBind(KEY_SELECT, SDLK_F11); //to switch full screen
 	SDL_N3DSKeyBind(KEY_START, SDLK_ESCAPE); //to pause
 	
@@ -345,7 +382,9 @@ int main(int argc, char** argv) {
 		if (start_fullscreen_f) fclose(start_fullscreen_f);
 	}
 
-#ifndef EMSCRIPTEN
+#ifdef _3DS
+	while (aptMainLoop()) mainLoop();
+#elif !defined(EMSCRIPTEN)
 	while (running) mainLoop();
 #else
 #include <emscripten.h>
@@ -503,8 +542,8 @@ static void mainLoop(void) {
 		if (kbstate[SDLK_RIGHT]) buttons_state |= (1<<1);
 		if (kbstate[SDLK_UP])    buttons_state |= (1<<2);
 		if (kbstate[SDLK_DOWN])  buttons_state |= (1<<3);
-		if (kbstate[SDLK_z] || kbstate[SDLK_c] || kbstate[SDLK_n] || kbstate[SDLK_a]) buttons_state |= (1<<4);
-		if (kbstate[SDLK_x] || kbstate[SDLK_v] || kbstate[SDLK_m] || kbstate[SDLK_b]) buttons_state |= (1<<5);
+		if (kbstate[SDLK_z] || kbstate[SDLK_c] || kbstate[SDLK_n]) buttons_state |= (1<<4);
+		if (kbstate[SDLK_x] || kbstate[SDLK_v] || kbstate[SDLK_m]) buttons_state |= (1<<5);
 	} else if (TAS && !paused) {
 		static int t = 0;
 		t++;
@@ -535,9 +574,10 @@ static void mainLoop(void) {
 
 	SDL_Flip(screen);
 
-#if defined(_3DS) /*using SDL_DOUBLEBUF for videomode makes it so SDL_Flip waits for Vsync; so we dont have to delay manually*/ \
- || defined(EMSCRIPTEN) //emscripten_set_main_loop already sets the fps
+#ifdef EMSCRIPTEN //emscripten_set_main_loop already sets the fps
 	SDL_Delay(1);
+#elif defined(_3DS)
+	gspWaitForVBlank(), gspWaitForVBlank();
 #else
 	static int t = 0;
 	static unsigned frame_start = 0;

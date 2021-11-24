@@ -54,7 +54,7 @@ CFLAGS	:=	-g -Wall -O3 -mword-relocations \
 			-fomit-frame-pointer -ffunction-sections \
 			$(ARCH)
 
-CFLAGS	+=	$(INCLUDE) -DARM11 -D_3DS -DPLATFORM_3DS `$$DEVKITPRO/portlibs/3ds/bin/sdl-config --cflags`
+CFLAGS	+=	$(INCLUDE) -DARM11 -D_3DS -D__3DS__ -DPLATFORM_3DS `$$DEVKITPRO/portlibs/3ds/bin/sdl-config --cflags`
 
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++11
 
